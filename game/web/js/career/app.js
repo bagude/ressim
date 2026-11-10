@@ -194,6 +194,35 @@ function blockingTask(horizon = 1) {
   return (C?.tasks || []).filter(t => t.status === 'open' && t.blocking && (t.due_month == null || t.due_month < C.month + horizon + 1e-6))
     .sort((a, b) => (a.due_month ?? -1) - (b.due_month ?? -1))[0] || null;
 }
+// a pad's life in stages: drill → complete → bring on, from the approved schedule's bars and the pad's own jobs
+const STAGE_ORDER = ['drill', 'complete', 'bring_on', 'produce', 'corporate'];
+const STAGE_LABEL = { drill: 'Drilling', complete: 'Completion', bring_on: 'Bring on', produce: 'Production', corporate: 'Company' };
+function padStages(pad, pr) {
+  const bars = (pr?.gantt?.bars || []).filter(b => b.pad === pad && b.kind !== 'wait'), ps = (C.pads_started || []).find(p => p.pad === pad);
+  const span = (k) => { const B = bars.filter(b => b.kind === k); return B.length ? [Math.min(...B.map(b => b.start_month)), Math.max(...B.map(b => b.end_month))] : null; };
+  const when = { drill: span('drill'), complete: span('complete'), bring_on: span('tie_in') };
+  if (!when.bring_on && ps?.online_month != null) when.bring_on = [ps.online_month - 0.5, ps.online_month];
+  if (!when.drill && ps?.drill_start_month != null) when.drill = [ps.drill_start_month, ps.drill_start_month + 1];
+  const jobs = (C.tasks || []).filter(t => t.link?.pad === pad);
+  return ['drill', 'complete', 'bring_on'].map(st => {
+    const w = when[st], J = jobs.filter(t => t.stage === st), open = J.some(t => t.status === 'open');
+    const time = !w ? null : C.month < w[0] - 1e-6 ? 'todo' : C.month >= w[1] - 1e-6 ? 'done' : 'now';
+    const state = open ? 'now' : time || (J.length && J.every(t => t.status !== 'open' && t.status !== 'upcoming') ? 'done' : 'todo');
+    const tip = [w ? `${monthName(w[0])} to ${monthName(w[1])}` : null, ...J.map(t => `${t.label}: ${t.status === 'upcoming' ? `opens ${monthName(t.opens_month)}` : t.status}`)].filter(Boolean).join('; ');
+    return { st, state, tip, jobs: J };
+  });
+}
+function padPipe(pad, pr) {
+  const mark = { done: '✓', now: '●', todo: '○' };
+  return h('span', { class: 'pad-pipe', role: 'list', 'aria-label': `Pad ${pad} stages` }, ...padStages(pad, pr).flatMap((x, i) => [i ? h('span', { class: 'pp-arrow', 'aria-hidden': 'true' }, '→') : null,
+    h('span', { class: `pp ${x.state}`, role: 'listitem', title: x.tip }, `${STAGE_LABEL[x.st].toLowerCase()} ${mark[x.state]}`, x.jobs.some(t => t.status === 'open') ? h('b', { class: 'pp-job' }, ' job') : null)].filter(Boolean)));
+}
+// pads not yet online (or online this month), each as a small pipeline
+function padsInProgress(pr) {
+  const P = (C.pads_started || []).filter(p => p.online_month == null || p.online_month > C.month - 1);
+  if (!P.length) return null;
+  return h('div', { class: 'pipes' }, h('h3', {}, 'Pads in progress'), h('ul', { class: 'plain' }, ...P.map(p => h('li', {}, h('span', { class: 'pp-pad' }, `Pad ${p.pad}`), padPipe(p.pad, pr)))));
+}
 const taskUrl = (t) => `minigames.html?game=${encodeURIComponent(t.kind)}&id=${encodeURIComponent(t.session)}`;
 // ------------------------------------------------------------------ continue: run until something needs you
 // Months run one at a time and stop on anything worth a look: a job to play (before it lapses), a pad coming online,
@@ -413,7 +442,8 @@ async function renderField() {
     d.append(h('p', { class: 'hint' }, 'Rock opens the simulator’s pressure map around that well, for the months you have seen.'));
   }
   const started = C.pads_started.find(p => p.section === focusSec);
-  if (started) d.append(h('p', {}, `Pad started: ${started.wells} wells, online ${monthName(started.online_month)}, AFE ${usd(started.afe_usd)}, actual ${usd(started.actual_usd)}.`));
+  if (started) { d.append(h('p', {}, `Pad started: ${started.wells} wells, online ${monthName(started.online_month)}, AFE ${usd(started.afe_usd)}, actual ${usd(started.actual_usd)}.`));
+    const pp = h('p', {}); d.append(pp); activePlanRes().then(pr => pp.replaceChildren(padPipe(started.pad, pr))); }
   if (!s.developed && !started) d.append(h('button', { type: 'button', class: 'small-btn', onclick: () => { addPad(focusSec); setTab('plan'); } }, 'Add a pad here to the plan'));
 }
 
@@ -1285,31 +1315,37 @@ async function renderHome() {
   }
   document.body.classList.toggle('over', C.status === 'sacked' || C.status === 'finished');
   if (C.status === 'sacked' || C.status === 'finished') end.append(careerReport());
-  // career tasks: each is a minigame whose result is applied to the career. Open ones first (blocking at the top),
-  // each with "do it" and "let staff handle it"; recent finished ones below with their outcome.
-  const all = C.tasks || [];
-  const openAll = all.filter(t => t.status === 'open').sort((a, b) => (b.blocking - a.blocking) || ((a.due_month ?? 1e9) - (b.due_month ?? 1e9)));
+  // career tasks: each is a minigame whose result is applied to the career. Grouped by the stage of a pad's life
+  // (drilling, completion, bring on, production, company), each stage sorted by due. Upcoming jobs are not open yet:
+  // greyed, with the month they open and "Leave to staff" (staff take them the moment they open).
+  const all = C.tasks || [], live = all.filter(t => t.status === 'open' || t.status === 'upcoming');
   const COSTS = new Set(['rig-contracts', 'water', 'facility']), sets = (t) => COSTS.has(t.kind) || [].concat(t.affects || []).includes('opex');
-  openAll.sort((a, b) => (b.blocking - a.blocking) || (sets(b) - sets(a)));
-  const soon = (t) => t.blocking || sets(t) || t.due_month == null || t.due_month < C.month + 3;
-  const open = openAll.filter(soon).length ? openAll.filter(soon) : openAll.slice(0, 1), later = openAll.filter(t => !open.includes(t));
-  const closed = all.filter(t => t.status !== 'open').slice(-4).reverse();
-  if (open.length || closed.length) end.append(h('div', { class: 'panel-card tasks' }, h('h2', {}, open.length ? 'Jobs waiting for you' : 'Recent jobs'),
-    open.length ? h('ul', { class: 'plain' }, ...open.map(t => h('li', { class: t.blocking ? 'blocking' : '' },
-      h('span', {}, t.blocking ? h('strong', {}, t.label) : t.label, t.link?.pad ? h('span', { class: 'tag' }, `pad ${t.link.pad}`) : null,
+  const closed = all.filter(t => t.status !== 'open' && t.status !== 'upcoming').slice(-4).reverse();
+  const prJobs = await activePlanRes();
+  const pipes = padsInProgress(prJobs);
+  const jobRow = (t) => {
+    const up = t.status === 'upcoming';
+    return h('li', { class: [t.blocking && !up ? 'blocking' : '', up ? 'upcoming' : ''].join(' ').trim() },
+      h('span', {}, t.blocking && !up ? h('strong', {}, t.label) : t.label, t.link?.pad ? h('span', { class: 'tag' }, `pad ${t.link.pad}`) : null,
         t.staff_outcome?.headline ? h('small', { class: 'staff' }, `If staff do it: ${t.staff_outcome.headline}`) : null,
-        sets(t) ? h('span', { class: 'tag costs' }, 'sets this year’s costs: play it early') : null,
-        t.blocking ? h('span', { class: 'tag' }, t.due_month != null ? `blocks the clock at ${monthName(t.due_month)}` : 'blocks the clock') : h('span', { class: 'tag' }, t.due_month != null ? `optional, until ${monthName(t.due_month)}` : 'optional')),
-      h('span', { class: 'strip-actions' }, h('a', { class: 'small-btn do', href: taskUrl(t) }, 'Do it'),
-        h('button', { type: 'button', class: 'small-btn', onclick: (e) => delegateTask(t, e.currentTarget) }, 'Let staff handle it'))))) : null,
+        sets(t) && !up ? h('span', { class: 'tag costs' }, 'sets this year’s costs: play it early') : null,
+        up ? h('span', { class: 'tag' }, t.predelegated ? `staff take it when it opens, ${monthName(t.opens_month)}` : `opens ${monthName(t.opens_month)}${t.due_month != null ? `, due ${monthName(t.due_month)}` : ''}`)
+          : t.blocking ? h('span', { class: 'tag' }, t.due_month != null ? `blocks the clock at ${monthName(t.due_month)}` : 'blocks the clock') : h('span', { class: 'tag' }, t.due_month != null ? `optional, until ${monthName(t.due_month)}` : 'optional')),
+      up ? (t.predelegated ? null : h('span', { class: 'strip-actions' }, h('button', { type: 'button', class: 'small-btn', onclick: (e) => delegateTask(t, e.currentTarget) }, 'Leave to staff')))
+        : h('span', { class: 'strip-actions' }, h('a', { class: 'small-btn do', href: taskUrl(t) }, 'Do it'),
+          h('button', { type: 'button', class: 'small-btn', onclick: (e) => delegateTask(t, e.currentTarget) }, 'Let staff handle it')));
+  };
+  const groups = STAGE_ORDER.map(st => ({ st, label: live.find(t => t.stage === st)?.stage_label || STAGE_LABEL[st],
+    jobs: live.filter(t => (t.stage || 'corporate') === st).sort((a, b) => ((a.due_month ?? a.opens_month ?? 1e9) - (b.due_month ?? b.opens_month ?? 1e9)) || (b.blocking - a.blocking)) })).filter(g => g.jobs.length);
+  const nOpen = live.filter(t => t.status === 'open').length;
+  if (live.length || closed.length || pipes) end.append(h('div', { class: 'panel-card tasks' }, h('h2', {}, nOpen ? 'Jobs waiting for you' : live.length ? 'Jobs coming up' : 'Recent jobs'),
+    pipes,
+    ...groups.map(g => h('section', { class: 'stage-group' }, h('h3', {}, g.label, h('small', { class: 'hint' }, ` ${g.jobs.filter(t => t.status === 'open').length} open${g.jobs.some(t => t.status === 'upcoming') ? `, ${g.jobs.filter(t => t.status === 'upcoming').length} coming` : ''}`)),
+      h('ul', { class: 'plain' }, ...g.jobs.map(jobRow)))),
+    closed.length && live.length ? h('h3', { class: 'done-h' }, 'Recently settled') : null,
     closed.length ? h('ul', { class: 'plain done-tasks' }, ...closed.map(t => h('li', {}, h('span', {}, t.label, h('span', { class: 'tag' }, t.status)),
       h('span', { class: 'hint' }, vsStaff(t) || t.result_headline || (t.status === 'delegated' ? 'Staff ran the standard job.' : t.status === 'lapsed' ? 'Lapsed: the standard outcome applied.' : ''))))) : null,
-    later.length ? h('details', { class: 'later-jobs' }, h('summary', {}, `${later.length} more optional job${later.length > 1 ? 's' : ''}, due ${monthName(Math.min(...later.map(t => t.due_month ?? 1e9)))} or later`),
-      h('ul', { class: 'plain' }, ...later.map(t => h('li', {}, h('span', {}, t.label, h('span', { class: 'tag' }, `optional, until ${monthName(t.due_month)}`),
-          t.staff_outcome?.headline ? h('small', { class: 'staff' }, `If staff do it: ${t.staff_outcome.headline}`) : null),
-        h('span', { class: 'strip-actions' }, h('a', { class: 'small-btn do', href: taskUrl(t) }, 'Do it'),
-          h('button', { type: 'button', class: 'small-btn', onclick: (e) => delegateTask(t, e.currentTarget) }, 'Let staff handle it')))))) : null,
-    h('p', { class: 'hint' }, 'Each job is a minigame and its result counts in this career. Staff give the company’s standard outcome: never a disaster, never better than standard.')));
+    h('p', { class: 'hint' }, 'Each job is a minigame and its result counts in this career. A pad’s jobs open in the order of its life: completion jobs when drilling ends, flowback once the frac jobs are settled. Staff give the company’s standard outcome: never a disaster, never better than standard.')));
   // coming up: the next bars of the approved schedule, and the next board meeting
   const ol = $('next-up'); ol.replaceChildren();
   const pr = await activePlanRes();
@@ -1474,7 +1510,7 @@ function boardFloorRow(by) {
 // ------------------------------------------------------------------ inbox: list and reading pane, filters, unread
 let mailFilter = 'all', mailOpen = null;
 const KINDS = [['all', 'All'], ['task', 'Jobs'], ['board', 'Board'], ['operations', 'Operations'], ['finance', 'Finance'], ['report', 'Monthly reports']];
-function unreadCount() { const seen = keep.get('seen', 0); const closed = new Set((C.tasks || []).filter(t => t.status !== 'open').map(t => t.id));
+function unreadCount() { const seen = keep.get('seen', 0); const closed = new Set((C.tasks || []).filter(t => t.status !== 'open' && t.status !== 'upcoming').map(t => t.id));
   return C.inbox.slice(seen).filter(m => m.kind !== 'report' && !(m.kind === 'task' && closed.has(m.data?.task))).length; }   // routine reports and settled jobs are not news
 function markRead() { keep.set('seen', C.inbox.length); $('inbox-n').textContent = ''; }
 function msgLink(m) {   // where a message points: a pad on the field, the board, finances, or a steering session

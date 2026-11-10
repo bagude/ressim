@@ -647,3 +647,19 @@ body.drawer-open::after { content: ''; position: fixed; inset: var(--barH, 56px)
 .panel-card.held { border-left: 3px solid #e8806f; }
 .steps li:not(.now) p.why-opt { display: block; }
 .steps li strong + .small-btn, .steps li .small-btn { margin-left: 0; }
+
+/* jobs by stage of a pad's life */
+.tasks .stage-group h3 { font-size: 13px; margin: 12px 0 2px; color: var(--bone); }
+.tasks .stage-group h3 small { font-weight: 400; }
+.tasks li.upcoming { opacity: 0.62; }
+.tasks .done-h { font-size: 13px; margin: 14px 0 2px; color: var(--bone-dim); }
+.pipes { margin: 4px 0 6px; }
+.pipes h3 { font-size: 13px; margin: 4px 0; }
+.pipes li { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; padding: 3px 0; }
+.pp-pad { min-width: 56px; font-weight: 700; }
+.pad-pipe { display: inline-flex; gap: 6px; align-items: center; flex-wrap: wrap; font-size: 12px; }
+.pad-pipe .pp { padding: 2px 8px; border-radius: 10px; border: 1px solid rgba(231,226,214,0.25); color: var(--bone-dim); white-space: nowrap; }
+.pad-pipe .pp.done { color: #8fd193; border-color: rgba(143,209,147,0.45); }
+.pad-pipe .pp.now { color: var(--bone); border-color: var(--gauge, #e7c66b); font-weight: 700; }
+.pad-pipe .pp-job { color: var(--gauge, #e7c66b); font-weight: 700; }
+.pad-pipe .pp-arrow { color: var(--bone-dim); }
