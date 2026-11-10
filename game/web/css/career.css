@@ -643,3 +643,7 @@ body.drawer-open::after { content: ''; position: fixed; inset: var(--barH, 56px)
   .tabs.loop .nav-group:first-child { margin-left: 0; }
   .tabs.loop button { padding-left: 10px; }
 }
+.core-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.panel-card.held { border-left: 3px solid #e8806f; }
+.steps li:not(.now) p.why-opt { display: block; }
+.steps li strong + .small-btn, .steps li .small-btn { margin-left: 0; }

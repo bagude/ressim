@@ -122,7 +122,7 @@ function meetingSteps() {
   const maps = Object.values(C.geomodels || {}).filter(m => (m.month ?? m.created_month ?? +(String(m.name).match(/month (\d+)/)?.[1] ?? -1)) >= y0).length;
   const last = (C.board.reviews || []).at(-1);
   return [
-    ...(last && !first ? [{ done: keep.get(`readReview${last.year}`, false), tab: 'diag', cta: 'Open Diagnostics', title: `Read the year ${last.year} review`,
+    ...(last && !first ? [{ done: C.workflow ? C.workflow.steps?.find(x => x.key === 'lookback')?.status === 'done' : keep.get(`readReview${last.year}`, false), tab: 'diag', cta: 'Open Diagnostics', title: `Read the year ${last.year} review`,
       why: `The board moved your confidence ${last.confidence_change >= 0 ? '+' : '−'}${num(Math.abs(last.confidence_change), 1)}: ${worstParts(last)}. Read the pad report cards and Diagnostics: was the miss your type curve or the execution?` }] : []),
     { done: maps > 0, optional: true, tab: 'maps', cta: 'Map the rock', title: 'Map the rock (optional, recommended)',
       why: 'Pick tops on the old vertical wells, map net pay and HCPV, and save the interpretation. The type curve can then scale each pad to the rock under it, instead of one field-wide average.' },
@@ -255,27 +255,32 @@ const PHASE_OF = { diag: 'lookback', reserves: 'lookback', finance: 'lookback', 
 function phaseNow() {
   if (C.status !== 'active') return 'lookback';
   const W = C.workflow;
-  if (W?.current_step) return ({ lookback: 'lookback', map: 'prepare', forecast: 'prepare', plan: 'prepare', budget: 'board' })[W.current_step] || 'year';
+  if (W?.current_step) return phaseOfStep(W.steps?.find(x => x.key === W.current_step) || { key: W.current_step });
   if (!C.budget_needed) return 'year';
   const st = meetingSteps(), cur = st.find(x => !x.done && !x.optional);
   return !cur ? 'board' : cur.tab === 'diag' ? 'lookback' : cur.tab === 'board' ? 'board' : 'prepare';
 }
+const phaseOfStep = (x) => ({ look_back: 'lookback', the_year: 'year' })[x.phase] || x.phase || ({ lookback: 'lookback', review: 'lookback', map: 'prepare', forecast: 'prepare', plan: 'prepare', budget: 'board' })[x.key] || 'year';
 function renderRail() {
   const now = phaseNow(), order = ['lookback', 'prepare', 'board', 'year'], i = order.indexOf(now);
   const W = C.workflow?.steps || [];
   for (const g of document.querySelectorAll('.tabs .nav-group')) {
-    const ph = g.dataset.phase, j = order.indexOf(ph), att = W.some(x => (x.phase || ({ lookback: 'lookback', map: 'prepare', forecast: 'prepare', plan: 'prepare', budget: 'board' })[x.key] || 'year') === ph && x.status === 'attention');
+    const ph = g.dataset.phase, j = order.indexOf(ph), att = W.some(x => phaseOfStep(x) === ph && x.status === 'attention');
     g.classList.toggle('now', ph === now); g.classList.toggle('past', C.budget_needed ? j < i : ph !== 'year' && ph !== 'lookback');
     g.querySelector('.ph-state').textContent = ph === now ? 'now' : att ? '!' : '';
-    g.title = ph === now ? 'Where the year stands' : '';
+    const mine = W.filter(x => phaseOfStep(x) === ph);
+    g.title = mine.map(x => `${x.label}: ${x.summary || x.status}`).join(' · ') || (ph === now ? 'Where the year stands' : '');
   }
 }
 function setTab(t) {
   if (t === 'inbox') { openInbox(true); return; }   // old links and buttons: open the drawer
   tab = t;
+  const lb = C?.workflow?.steps?.find(x => x.key === 'lookback');
+  if (PHASE_OF[t] === 'lookback' && lb?.status === 'attention')
+    call('/api/career/ack', { id: C.id, step: 'lookback' }).then(r => { if (r?.ok && r.workflow) { C.workflow = r.workflow; renderRail(); renderBar(); } }).catch(() => {});
   for (const b of document.querySelectorAll('.tabs button')) b.setAttribute('aria-selected', String(b.dataset.tab === t));
   for (const s of document.querySelectorAll('.tab:not(.drawer)')) s.hidden = s.id !== `tab-${t}`;
-  renderRail();
+  renderRail(); if (C) renderBar();
   const sel = document.querySelector(`.tabs button[data-tab="${t}"]`), nav = sel?.parentElement;   // phones: the row scrolls; keep the current step in view
   if (sel && nav.scrollWidth > nav.clientWidth) nav.scrollLeft = Math.max(0, sel.offsetLeft - 24 - (sel.previousElementSibling?.classList.contains('nav-group') ? sel.previousElementSibling.offsetWidth : 0));
   const u = new URLSearchParams(location.search); u.set('tab', t); history.replaceState(null, '', '?' + u);
@@ -542,7 +547,12 @@ async function fillTcGeo() {
     const r = await call('/api/career/typecurve', { id: C.id, analogs: [...tcSel], normalise: $('tc-norm').checked, geo_fits: newest }).catch(() => null);
     const F = r?.ok ? r.geo_fits || [] : [];
     for (const o of sel.options) { const [m, a] = o.value.split('|'), f = m === newest && F.find(x => x.attribute === a); if (f) o.textContent = `${o.textContent} (r² ${num(f.r2, 2)})`; }
-    if (!keepV && F.length && F[0].r2 >= 0.15) { sel.value = `${newest}|${F[0].attribute}`; keep.set('tcGeo', sel.value); tcOverride = null; previewTC(); }   // preselect the best, if it explains anything
+    // an attribute that is the same under every open section can't tell pads apart, however well it fits the analogs
+    const secs = g.geomodels[newest].sections || {}, open = C.sections.filter(x => !x.developed).map(x => secs[x.section]).filter(Boolean);
+    const varies = (a) => { const v = open.map(x => x[a]).filter(Number.isFinite); if (v.length < 2) return false; const m = v.reduce((p, q) => p + q, 0) / v.length; return m !== 0 && Math.sqrt(v.reduce((p, q) => p + (q - m) ** 2, 0) / v.length) / Math.abs(m) > 0.03; };
+    for (const o of sel.options) { const [m, at] = o.value.split('|'); if (m === newest && at && !varies(at)) o.textContent += ': the same under every open section'; }
+    const best = F.find(f => f.r2 >= 0.15 && varies(f.attribute));
+    if (!keepV && best) { sel.value = `${newest}|${best.attribute}`; keep.set('tcGeo', sel.value); tcOverride = null; previewTC(); }   // preselect the best, if it explains anything
   }
   const none = sel.options.length < 2;
   $('tc-geo-row').hidden = false; sel.disabled = none;
@@ -889,6 +899,8 @@ function revisionPanel(v) {
     v.confidence_if_unrevised != null ? h('div', { class: 'rev-compare' },
       h('div', {}, h('span', {}, 'Do nothing'), h('strong', {}, String(Math.round(v.confidence_if_unrevised))), h('small', {}, 'confidence after the review, at today’s pace')),
       h('div', { class: changed ? 'pick' : '' }, h('span', {}, 'With this revision'), h('strong', {}, String(Math.round(v.confidence_if_revised ?? v.confidence_if_unrevised))), h('small', {}, 'the revision’s cost now, plus the review at today’s pace'))) : null,
+    changed && v.confidence_if_revised != null && v.confidence_if_unrevised != null && v.confidence_if_revised < v.confidence_if_unrevised - 0.5
+      ? h('p', { class: 'bad' }, `This revision leaves you ${num(v.confidence_if_unrevised - v.confidence_if_revised, 1)} points worse than doing nothing, at today’s pace. Change it, or leave the plan as it is.`) : null,
     h('div', { class: 'rev-price' },
       h('span', { class: `rev-cost ${cc < 0 ? 'neg' : 'pos'}` }, cc < 0 ? `−${num(-cc, 1)} confidence` : 'No confidence cost'),
       ...(cc >= 0 ? [] : [h('small', {}, [v.guidance_confidence ? `guidance ${num(v.guidance_confidence, 1)}` : null, v.budget_confidence ? `budget ${num(v.budget_confidence, 1)}` : null].filter(Boolean).join(', '))]),
@@ -963,7 +975,7 @@ async function evaluatePlan(render = true) {
       p.interference_child_factor == null ? '–' : `×${num(p.interference_child_factor, 2)}${p.parents?.length ? `, ${p.parents.length} parent${p.parents.length > 1 ? 's' : ''}` : ''}`),
     h('td', {}, usd(p.capex_usd)), h('td', p.npv10_usd < 0 ? { class: 'bad' } : {}, usd(p.npv10_usd)), h('td', {}, num(p.pvi, 2)), h('td', {}, p.irr == null ? '–' : pct(p.irr))));
   pt.append(pb);
-  $('plan-pads').replaceChildren(...[h('h2', {}, 'Pad economics'), r.pads.length ? h('div', { style: 'overflow-x:auto' }, pt) : h('p', { class: 'hint' }, 'No pads yet: pick a section on the map below to add one.'),
+  $('plan-pads').replaceChildren(...[h('h2', {}, 'Pad economics'), r.pads.length ? h('div', { style: 'overflow-x:auto' }, pt) : h('p', { class: 'hint' }, 'No pads yet: pick a section on the map above to add one.'),
     r.pads.some(p => p.online_month_p90 != null) ? h('p', { class: 'hint' }, 'Online: the planned month, and the range it will likely fall in. About a quarter of pads start 7 to 40 days late (permits, weather, a late frac crew, pad construction); the odds are known, the draws are not.') : null].filter(Boolean));
   renderScenarios();
   const A = r.afe_estimate_per_well;
@@ -1042,7 +1054,7 @@ async function renderBoard() {
       h('p', { class: 'hint' }, bc?.rejection_costs_confidence === false ? 'A retry this year is free: only the first rejection costs confidence.' : 'The first rejection this year costs 3 points of confidence; retries are free.'));
     const go = h('button', { type: 'button', class: 'board-go' }, 'Present the plan to the board');
     go.addEventListener('click', async () => {
-      go.disabled = true;
+      go.disabled = true; go.textContent = 'Presenting to the board: the plan is being simulated (up to a minute)…';
       const r = await call('/api/career/budget', { id: C.id, plan: draft });
       if (!r.ok && !r.decision) { lastDecision = { approved: false, reasons: r.errors }; }
       else { lastDecision = r.decision; if (r.career) C = r.career; }
@@ -1118,7 +1130,7 @@ function vsStaff(t) {
   const v = t.played_vs_staff;
   if (!v || v.delta == null) return null;
   const f = (x) => v.unit === 'usd' ? usd(Math.abs(x)) : v.unit === 'pct' ? `${num(Math.abs(x), 1)} points` : `${num(Math.abs(x), 1)}`;
-  const word = v.delta > 0 ? (v.better || 'better') : v.delta < 0 ? (v.worse || 'worse') : null;
+  const word = v.delta > 0 ? (typeof v.better === 'string' ? v.better : 'better') : v.delta < 0 ? (typeof v.worse === 'string' ? v.worse : 'worse') : null;
   return h('span', { class: v.delta > 0 ? 'pos' : v.delta < 0 ? 'neg' : '' }, v.delta === 0 ? 'Same as staff.' : `${f(v.delta)} ${word} than staff${v.metric ? ` (${v.metric})` : ''}.`);
 }
 
@@ -1255,7 +1267,7 @@ async function renderHome() {
     const steps = meetingSteps(), cur = steps.findIndex(s => !s.done && !s.optional);
     end.append(h('div', { class: 'panel-card steps' }, h('h2', {}, `Year ${C.year} budget meeting`),
       h('ol', {}, ...steps.map((st, i) => h('li', { class: st.done ? 'done' : i === cur ? 'now' : '' },
-        h('strong', {}, st.title), h('p', {}, st.why),
+        h('strong', {}, st.title), h('p', { class: st.optional ? 'why-opt' : '' }, st.why),
         (i === cur || (st.optional && !st.done)) && st.tab ? h('button', { type: 'button', class: `small-btn ${i === cur ? 'do' : ''}`, onclick: () => { if (st.tab === 'diag' && C.board.reviews.length) keep.set(`readReview${C.board.reviews.at(-1).year}`, true); setTab(st.tab); } }, st.cta.replace(/^Next: /, '').replace(/^./, c => c.toUpperCase())) : null)))));
   }
   if (stopNote) {
@@ -1276,7 +1288,7 @@ async function renderHome() {
   // each with "do it" and "let staff handle it"; recent finished ones below with their outcome.
   const all = C.tasks || [];
   const openAll = all.filter(t => t.status === 'open').sort((a, b) => (b.blocking - a.blocking) || ((a.due_month ?? 1e9) - (b.due_month ?? 1e9)));
-  const COSTS = new Set(['rig-contracts', 'water', 'facility']), sets = (t) => COSTS.has(t.kind) || [].concat(t.affects || []).some(a => a === 'opex' || a === 'capex');
+  const COSTS = new Set(['rig-contracts', 'water', 'facility']), sets = (t) => COSTS.has(t.kind) || [].concat(t.affects || []).includes('opex');
   openAll.sort((a, b) => (b.blocking - a.blocking) || (sets(b) - sets(a)));
   const soon = (t) => t.blocking || sets(t) || t.due_month == null || t.due_month < C.month + 3;
   const open = openAll.filter(soon).length ? openAll.filter(soon) : openAll.slice(0, 1), later = openAll.filter(t => !open.includes(t));
@@ -1309,6 +1321,15 @@ async function renderHome() {
   const nextBoard = C.budget_needed ? C.month : Math.ceil((C.month + 0.001) / 12) * 12;
   if (nextBoard <= C.career_months) ev.push({ m: nextBoard, what: C.budget_needed ? 'Budget meeting: due now' : `Year ${nextBoard / 12 + 1} budget meeting`, cls: 'board' });
   ev.sort((a, b) => a.m - b.m);
+  const held = (pr?.gantt?.bars || []).filter(b => b.status === 'delayed' && b.kind !== 'wait' && b.end_month > C.month);
+  const heldPads = [...new Set(held.map(b => b.pad))];
+  if (heldPads.length && C.status === 'active' && !C.budget_needed) {
+    const on = (p) => held.filter(b => b.pad === p && b.kind === 'tie_in').map(b => b.end_month)[0];
+    end.prepend(h('div', { class: 'panel-card held' }, h('h2', {}, `Held for budget: pad${heldPads.length > 1 ? 's' : ''} ${heldPads.join(', ')}`),
+      h('p', {}, `${heldPads.map(p => on(p) != null ? `${p} now comes online ${monthName(on(p))}` : `${p} waits for the next budget year`).join('; ')}. This year’s guidance counted ${heldPads.length > 1 ? 'them' : 'it'} earlier, so production will fall short of what the review panel shows.`),
+      h('p', { class: 'hint' }, 'Cost overruns on started pads used the room in the budget. Options: revise guidance down early (cheaper now than a year-end miss), or ask for a budget top-up if it releases the pad. Compare both in the Development plan.'),
+      h('button', { type: 'button', class: 'small-btn do', onclick: () => setTab('plan') }, 'Open the revision')));
+  }
   if (!ev.length) ol.append(h('li', {}, h('strong', {}, 'Nothing scheduled'), h('span', { class: 'when' }, 'Plan pads to fill the calendar.')));
   for (const e of ev.slice(0, 8)) {
     const dm = e.m - C.month;

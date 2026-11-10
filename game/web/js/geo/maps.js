@@ -100,7 +100,10 @@ export function wellPoints(C, analogs) {
   return out;
 }
 
+const CORE_ATTR = { key: 'core_k', label: 'Core permeability (measured)', unit: 'md', d: 4 };
+const cored = () => (GEO?.wells || []).filter(w => w.type === 'vertical' && w.core?.k_md != null);
 function pointsFor(attr, C, analogs) {
+  if (attr === 'core_k') return cored().map(w => ({ id: w.id, x: w.x_ft, y: w.y_ft, z: w.core.k_md, kind: 'well', owner: 'vertical' }));
   const pa = PICK_ATTRS.find(a => a.key === attr);
   if (pa && pa.key === 'p_top' && GEO?.laterals?.length) {   // drilled laterals add top control along their length
     const vert = pointsFor('p_top_v', C, analogs);
@@ -251,7 +254,8 @@ export function renderMaps(host, { C, analogs }) {
     const sel = h('select', { 'aria-label': 'Attribute to map' },
       ...['Production', 'Completion'].map(gname => h('optgroup', { label: gname }, ...ATTRS.filter(a => a.group === gname).map(a => h('option', { value: a.key }, a.label)))),
       C.geology?.sections?.length ? h('optgroup', { label: 'Company geology map (per section)' }, ...GEO_ATTRS.map(a => h('option', { value: a.key }, a.label))) : null,
-      logWells().length ? h('optgroup', { label: 'From your log picks' }, ...PICK_ATTRS.map(a => h('option', { value: a.key }, a.label))) : null);
+      logWells().length ? h('optgroup', { label: 'From your log picks' }, ...PICK_ATTRS.map(a => h('option', { value: a.key }, a.label))) : null,
+      cored().length ? h('optgroup', { label: 'From your cores' }, h('option', { value: CORE_ATTR.key, disabled: cored().length < 3 }, `${CORE_ATTR.label}${cored().length < 3 ? ` (${cored().length} of 3 cores needed)` : ''}`)) : null);
     sel.value = st.attr; sel.addEventListener('change', () => { st.attr = sel.value; st.model = null; st.interval = null; st.xs = null; rerender(); });
     const meth = seg('Method', [['kriging', 'Kriging'], ['idw', 'Inverse distance']], st.method, (v) => { st.method = v; if (v === 'idw' && st.show === 'sd') st.show = 'estimate'; rerender(); });
     const show = seg('Show', [['estimate', 'Estimate'], ['sd', 'Uncertainty']], st.show, (v) => { st.show = v; st.interval = null; rerender(); }, st.method !== 'kriging');
@@ -271,7 +275,7 @@ export function renderMaps(host, { C, analogs }) {
     ci.addEventListener('change', () => { st.interval = +ci.value > 0 ? +ci.value : null; rerender(); });
     const cell = h('select', { 'aria-label': 'Grid cell size' }, ...[[132, '132 ft (fine)'], [264, '264 ft'], [528, '528 ft (coarse)']].map(([v, l]) => h('option', { value: v }, l)));
     cell.value = st.cell; cell.addEventListener('change', () => { st.cell = +cell.value; rerender(); });
-    box.append(modeSwitch(), h('label', { class: 'mlbl' }, 'Attribute', sel),
+    box.append(...[modeSwitch(), h('label', { class: 'mlbl' }, 'Attribute', sel),
       h('p', { class: 'hint' }, `${ptsAll.length} ${ptsAll[0]?.kind === 'section' ? 'sections' : 'wells'} carry it. ${ptsAll[0]?.kind === 'section' ? 'The company map is an estimate with noise; it is not the rock itself.' : PICK_ATTRS.some(a => a.key === st.attr) ? 'From your picks and cutoffs, posted at each well with a log.' : 'Posted at the middle of each lateral.'}`),
       meth, show, kr,
       h('div', { class: 'ctl-group' }, h('label', { class: 'mlbl' }, 'Contour interval ', ci, ` ${Ai.unit}`), h('label', { class: 'mlbl' }, 'Grid cell ', cell),
@@ -280,6 +284,7 @@ export function renderMaps(host, { C, analogs }) {
         st.picking ? h('p', { class: 'hint' }, 'Click two points on the map: A, then A′.') : null,
         st.xs ? h('button', { type: 'button', class: 'small-btn', onclick: () => { st.xs = null; rerender(); } }, 'Clear the cross-section') : null),
       logWells().length && !GEO?.mock ? saveBox() : null,
+      (GEO?.wells || []).some(w => w.type === 'vertical') && !GEO?.mock ? coreBox() : null,
       h('p', { class: 'hint' }, (() => {
         const n = logWells().length, picked = Object.keys(st.picks || {}).length, saved = Object.keys(GEO?.geomodels || {}).length;
         if (!n) return 'Well logs are not available for this field yet.';
@@ -288,7 +293,24 @@ export function renderMaps(host, { C, analogs }) {
         if (picked) return `${picked} of ${n} wells with logs picked. Map net pay or HCPV above, then save the interpretation.${tail}`;
         return `${n} wells have logs. Pick tops in Correlate, then map thickness, net pay and HCPV here.${tail}`;
       })()),
-      Object.keys(GEO?.geomodels || {}).length ? h('button', { type: 'button', class: 'small-btn do', onclick: () => document.querySelector('[data-tab="typecurve"]')?.click() }, 'Use it in the type curve') : null);
+      Object.keys(GEO?.geomodels || {}).length ? h('button', { type: 'button', class: 'small-btn do', onclick: () => document.querySelector('[data-tab="typecurve"]')?.click() }, 'Use it in the type curve') : null].filter(Boolean));
+  }
+  // cut a core in a legacy vertical: a measured permeability (within about 15 %), $250k at month end, once per well.
+  // Logs give porosity and saturation; only core gives permeability, the number the type curve and the DFIT can't pin down.
+  function coreBox() {
+    const V = (GEO?.wells || []).filter(w => w.type === 'vertical'), have = V.filter(w => w.core?.k_md != null), left = V.filter(w => w.core?.k_md == null);
+    const pick = h('select', { 'aria-label': 'Vertical well to core' }, ...left.map(w => h('option', { value: w.id }, `${w.id}${w.year_drilled ? `, drilled ${w.year_drilled}` : ''}`)));
+    const msg = h('p', { class: 'hint', role: 'status' });
+    const go = h('button', { type: 'button', class: 'small-btn' }, 'Cut a core ($250k)');
+    go.addEventListener('click', async () => {
+      go.disabled = true; msg.textContent = 'Cutting the core…';
+      const r = await fetch('/api/career/core', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: C.id, well: pick.value }) }).then(x => x.json()).catch(() => ({ ok: false, errors: ['The server did not answer.'] }));
+      if (!r.ok) { go.disabled = false; msg.textContent = (r.errors || ['The core was not cut.']).join(' '); return; }
+      GEO = await loadGeo(C); rerender();
+    });
+    return h('div', { class: 'ctl-group' }, h('span', { class: 'mlbl' }, 'Cores'),
+      h('p', { class: 'hint' }, `Logs give porosity and saturation; only a core measures permeability (within about 15%). ${have.length ? `Cored: ${have.map(w => `${w.id} ${num(w.core.k_md, 4)} md`).join(', ')}.` : 'No cores yet.'}${have.length < 3 ? ' Three cores make permeability mappable.' : ''}`),
+      left.length ? h('span', { class: 'core-row' }, pick, go) : null, msg);
   }
   function saveBox() {
     const name = h('input', { type: 'text', maxlength: 40, 'aria-label': 'Interpretation name', placeholder: `My map, month ${C.month}` });
