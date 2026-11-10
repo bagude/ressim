@@ -550,8 +550,9 @@ async function fillTcGeo() {
     // an attribute that is the same under every open section can't tell pads apart, however well it fits the analogs
     const secs = g.geomodels[newest].sections || {}, open = C.sections.filter(x => !x.developed).map(x => secs[x.section]).filter(Boolean);
     const varies = (a) => { const v = open.map(x => x[a]).filter(Number.isFinite); if (v.length < 2) return false; const m = v.reduce((p, q) => p + q, 0) / v.length; return m !== 0 && Math.sqrt(v.reduce((p, q) => p + (q - m) ** 2, 0) / v.length) / Math.abs(m) > 0.03; };
-    for (const o of sel.options) { const [m, at] = o.value.split('|'); if (m === newest && at && !varies(at)) o.textContent += ': the same under every open section'; }
-    const best = F.find(f => f.r2 >= 0.15 && varies(f.attribute));
+    const ok = (a) => { const f = F.find(x => x.attribute === a); return f && f.usable != null ? f.usable : varies(a); };
+    for (const o of sel.options) { const [m, at] = o.value.split('|'); if (m === newest && at && !ok(at)) o.textContent += ': barely varies across the open sections'; }
+    const best = F.find(f => f.r2 >= 0.15 && ok(f.attribute));
     if (!keepV && best) { sel.value = `${newest}|${best.attribute}`; keep.set('tcGeo', sel.value); tcOverride = null; previewTC(); }   // preselect the best, if it explains anything
   }
   const none = sel.options.length < 2;
