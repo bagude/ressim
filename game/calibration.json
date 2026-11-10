@@ -1,0 +1,72 @@
+{
+ "first-light": {
+  "best_npv_usd": 1656482.8945326686,
+  "design": {
+   "stages": 10,
+   "half_length_ft": 375.0,
+   "conductivity_mdft": 50.0,
+   "bhp_psi": 1500.0
+  },
+  "runs": 25
+ },
+ "fast-rock": {
+  "best_npv_usd": 6859242.600267728,
+  "design": {
+   "stages": 5,
+   "half_length_ft": 375.0,
+   "conductivity_mdft": 100.0,
+   "bhp_psi": 1000.0
+  },
+  "runs": 46
+ },
+ "sand-and-pressure": {
+  "best_npv_usd": 1963613.1729025838,
+  "design": {
+   "stages": 10,
+   "half_length_ft": 415.0,
+   "conductivity_mdft": 50.0,
+   "bhp_psi": 1000.0
+  },
+  "runs": 45
+ },
+ "narrow-lease": {
+  "best_npv_usd": 680285.1581790262,
+  "design": {
+   "stages": 12,
+   "half_length_ft": 225.0,
+   "conductivity_mdft": 15.0,
+   "bhp_psi": 1000.0
+  },
+  "runs": 46
+ },
+ "facility-cap": {
+  "best_npv_usd": 1754405.6257833738,
+  "design": {
+   "stages": 11,
+   "half_length_ft": 375.0,
+   "conductivity_mdft": 30.0,
+   "bhp_psi": 1000.0
+  },
+  "runs": 46
+ },
+ "engineers-sandbox": {
+  "best_npv_usd": 1968091.4614986754,
+  "design": {
+   "stages": 11,
+   "half_length_ft": 340.0,
+   "conductivity_mdft": 30.0,
+   "bhp_psi": 1000.0
+  },
+  "runs": 39
+ },
+ "tight-rock": {
+  "best_npv_usd": 1149815.0619571295,
+  "design": {
+   "stages": 15,
+   "half_length_ft": 335.0,
+   "conductivity_mdft": 15.0,
+   "bhp_psi": 1000.0
+  },
+  "runs": 46
+ }
+}

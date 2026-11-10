@@ -1,0 +1,257 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Frac Challenge career</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..800&display=swap" rel="stylesheet">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 16 16%22%3E%3Crect x=%225%22 y=%221%22 width=%226%22 height=%2214%22 fill=%22%23f0a53a%22/%3E%3C/svg%3E">
+<link rel="stylesheet" href="css/app.css">
+<link rel="stylesheet" href="css/game.css">
+<link rel="stylesheet" href="css/career.css">
+<script type="importmap">
+{ "imports": {
+    "three": "./vendor/three/build/three.module.js",
+    "three/addons/": "./vendor/three/addons/"
+} }
+</script>
+</head>
+<body class="career">
+<header class="cbar">
+  <a class="brand" href="./">Frac Challenge</a>
+  <a class="workshop-link" href="minigames.html">Minigames</a>
+  <span class="cname" id="cname">Career</span>
+  <span class="clock" id="clock"></span>
+  <span class="kpi"><span>Cash</span><strong id="cash"></strong></span>
+  <span class="kpi conf"><span>Board confidence</span><meter id="conf" min="0" max="100" low="20" high="50" optimum="100"></meter><strong id="conf-n"></strong></span>
+  <span class="kpi pace" id="pace" hidden><span>This year</span><strong></strong></span>
+  <span class="advance">
+    <button type="button" id="advY">To year end</button>
+    <button type="button" id="adv1" class="continue">Continue</button>
+  </span>
+</header>
+
+<main id="landing" class="landing" hidden>
+  <h1>Run the asset for five years</h1>
+  <p class="lede">You inherit producing wells and open acreage. Build a type curve from the wells you can see, plan pads,
+    win the board's budget each year, and live with what the rock actually delivers.</p>
+  <ul class="rules">
+    <li><strong>Win:</strong> create the most value in 60 months: the cash you generate plus what your wells are still worth.</li>
+    <li><strong>Each year:</strong> promise the board an oil volume and a budget, then deliver it. Missing the promise costs confidence, and so does beating it by more than 10%.</li>
+    <li><strong>Lose:</strong> board confidence falls below 20, or cash runs past the credit line.</li>
+  </ul>
+  <form id="new-form" class="new-form">
+    <label>Career name <input id="new-name" maxlength="40" required></label>
+    <button type="submit">Start a career</button>
+  </form>
+  <p id="gen" class="gen" hidden role="status"></p>
+  <h2>Saved careers</h2>
+  <ul id="careers" class="careers"></ul>
+</main>
+
+<div id="app" class="app" hidden>
+  <nav class="tabs" aria-label="Career sections">
+    <button type="button" data-tab="home">Home</button>
+    <button type="button" data-tab="inbox">Inbox <span id="inbox-n" class="count"></span></button>
+    <span class="nav-group">Asset</span>
+    <button type="button" data-tab="field">Field</button>
+    <button type="button" data-tab="maps">Maps</button>
+    <button type="button" data-tab="typecurve">Type curve</button>
+    <button type="button" data-tab="diag">Diagnostics</button>
+    <button type="button" data-tab="plan">Development plan</button>
+    <span class="nav-group">Company</span>
+    <button type="button" data-tab="board">Board</button>
+    <button type="button" data-tab="finance">Finances</button>
+  </nav>
+  <div class="main">
+
+  <section class="tab" id="tab-home" hidden>
+    <div id="end-card"></div>
+    <div class="home-grid">
+      <div class="home-main">
+        <h2>Coming up</h2>
+        <ol id="next-up" class="next-up"></ol>
+        <h2>Latest news</h2>
+        <ol id="home-inbox" class="inbox compact"></ol>
+        <div id="home-chart"></div>
+      </div>
+      <aside class="home-side">
+        <div class="panel-card" id="conf-card"></div>
+        <div class="panel-card" id="year-card"></div>
+        <div class="panel-card" id="rival-card" hidden></div>
+        <div class="panel-card" id="money-card"></div>
+      </aside>
+    </div>
+  </section>
+
+  <section class="tab" id="tab-finance" hidden>
+    <div id="fin-cash"></div>
+    <div id="fin-flows"></div>
+    <div id="fin-years"></div>
+    <div id="fin-afe"></div>
+  </section>
+
+  <section class="tab" id="tab-diag" hidden>
+    <div id="diag-host"></div>
+  </section>
+
+  <section class="tab" id="tab-maps" hidden>
+    <div id="maps-host"></div>
+  </section>
+
+  <section class="tab" id="tab-field" hidden>
+    <div class="cols">
+      <div class="col-main">
+        <div class="stage3d" id="stage3d">
+          <canvas id="field3d" role="img" aria-label="3D view of the field: sections, pads and wells underground. The pad list below describes it in words." aria-describedby="field-keys"></canvas>
+          <div class="stage-tools">
+            <button type="button" id="fit">Whole field</button>
+            <button type="button" id="ug" aria-pressed="false">Underground view</button>
+            <span class="seg" role="group" aria-label="Map layer">
+              <button type="button" data-layer="wells" aria-pressed="true">Wells</button>
+              <button type="button" data-layer="production" aria-pressed="false">Production</button>
+            </span>
+            <span class="seg" role="group" aria-label="Map style">
+              <button type="button" data-style="aerial" aria-pressed="true">Aerial</button>
+              <button type="button" data-style="topo" aria-pressed="false">Topo</button>
+            </span>
+            <button type="button" id="map2d" aria-pressed="false">Schematic</button>
+          </div>
+          <details class="map-legend">
+            <summary>Legend</summary>
+            <ul>
+              <li><i class="sw road"></i>County road on a section line</li>
+              <li><i class="sw lease"></i>Lease road and pad</li>
+              <li><i class="sw plan"></i>Planned pad</li>
+              <li><i class="sw well you"></i>Your well: surface location, lateral, bottom hole</li>
+              <li><i class="sw well pdp"></i>Inherited well</li>
+              <li><i class="sw well planned"></i>Planned well</li>
+              <li class="topo-only"><i class="sw plss"></i>Section line</li>
+              <li class="topo-only"><i class="sw contour"></i>Contour, 10 ft (heavy every 50 ft)</li>
+              <li><i class="sw wash"></i>Dry wash</li>
+            </ul>
+            <p class="elev"></p>
+            <p class="bubbles"></p>
+            <p>Terrain, washes and elevations are illustrative, not a real place.</p>
+          </details>
+        </div>
+        <p class="stage-note">Drag to orbit, scroll to zoom, click a section. Wells drawn about 40 ft wide so they read; equipment simplified at this scale.</p>
+        <p class="sr-only" id="field-keys">The view opens as a map, north up. With it focused: arrow keys orbit, plus and minus zoom, Home shows the whole field.</p>
+        <div class="month-changes" id="month-changes" role="status" aria-live="polite"></div>
+        <nav class="pad-list" id="pad-list" aria-label="Pads on the field"></nav>
+        <div id="map-field" hidden></div>
+        <div id="ch-history"></div>
+      </div>
+      <aside class="col-side" id="sec-detail"></aside>
+    </div>
+  </section>
+
+  <section class="tab" id="tab-typecurve" hidden>
+    <div class="tc-layout">
+      <div class="tc-left">
+        <div class="tc-head">
+          <h2>Analog wells</h2>
+          <div class="tc-tools">
+            <button type="button" class="small-btn" id="tc-near">Nearest to my pads</button>
+            <button type="button" class="small-btn" id="tc-all">All</button>
+            <button type="button" class="small-btn" id="tc-none">None</button>
+            <span class="tc-prox"><select id="tc-prox-pad" aria-label="Section to auto-forecast"></select>
+              <input type="number" id="tc-prox-n" min="3" max="20" value="8" aria-label="Number of nearest wells">
+              <button type="button" class="small-btn" id="tc-prox">Nearest wells</button></span>
+            <label class="check"><input type="checkbox" id="tc-norm" checked> Per 1,000 ft of lateral</label>
+            <label class="tc-geo" id="tc-geo-row" hidden>Adjust for geology <select id="tc-geo"></select></label>
+          </div>
+          <p class="hint" id="tc-geo-note"></p>
+        </div>
+        <p class="hint">Wells near the acreage you will drill predict it best. Hover a well to find it on the chart and the map; click a column to sort.</p>
+        <div id="tc-table" class="tc-table"></div>
+        <div id="tc-range" class="tc-range"></div>
+        <div id="map-tc"></div>
+      </div>
+      <div class="tc-right">
+        <div id="ch-tc"></div>
+        <div class="eur" id="tc-eur"></div>
+        <div class="tc-fit">
+          <div>
+            <h2>Adjust the P50</h2>
+            <p class="hint">Drag to override the fit. The white line and “Your P50 EUR” follow you; nothing is kept until you save.</p>
+            <div id="tc-sliders" class="sliders"></div>
+          </div>
+          <div>
+            <h2>Save and use</h2>
+            <form id="tc-save" class="inline">
+              <label>Name <input id="tc-name" maxlength="30"></label>
+              <button type="submit" id="tc-save-btn">Save type curve</button>
+            </form>
+            <p id="tc-msg" class="hint" role="status"></p>
+            <ul id="tc-list" class="plain saved"></ul>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="tab" id="tab-plan" hidden>
+    <div class="plan-strip" id="plan-strip"></div>
+    <div id="plan-warn" class="warn" role="alert" hidden></div>
+    <div class="plan-layout">
+      <div class="plan-inputs">
+        <h2>Pads, in drilling order</h2>
+        <div id="map-plan" class="map-plan"></div>
+        <div class="add-pad" id="add-pad"></div>
+        <ol id="pads" class="pads"></ol>
+        <h2>Type curve</h2>
+        <div id="plan-tc"></div>
+        <h2>Completion design, field-wide</h2>
+        <div id="plan-design" class="sliders"></div>
+        <h2>Equipment</h2>
+        <div id="plan-equip" class="sliders"></div>
+        <details class="rules"><summary>How the schedule works</summary>
+          <ul>
+            <li>One rig per pad. Wells are batch drilled, each rig gets faster with practice, and rigs move between pads.</li>
+            <li>A frac crew starts a pad only after all its wells are drilled.</li>
+            <li>Wells come online together after a 14-day tie-in.</li>
+            <li>A pad waits for the next budget year if its cost would break that year's budget.</li>
+            <li>Pads lock 30 days before spud.</li>
+          </ul>
+        </details>
+      </div>
+      <div class="plan-results">
+        <div id="plan-measures" class="tiles"></div>
+        <div id="plan-years"></div>
+        <div id="ch-gantt"></div>
+        <div id="ch-forecast"></div>
+        <div id="plan-pads"></div>
+        <div id="plan-scen" class="plan-scen"></div>
+        <div id="plan-afe"></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="tab" id="tab-board" hidden>
+    <div class="board-layout">
+      <div id="board-main"></div>
+      <aside id="board-side"></aside>
+    </div>
+  </section>
+
+  <section class="tab" id="tab-inbox" hidden>
+    <div class="mail">
+      <div class="mail-list">
+        <div class="chips" id="mail-filters" role="toolbar" aria-label="Filter messages"></div>
+        <ol id="inbox" class="mail-items"></ol>
+      </div>
+      <article class="mail-read" id="mail-read" aria-live="polite"></article>
+    </div>
+  </section>
+  </div>
+</div>
+
+<footer class="disclaimer">
+  A game, not an engineering tool. Economics are illustrative; production comes from a 2D one-layer simulator on the SPE1 benchmark oil.
+</footer>
+<script type="module" src="js/career/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Frac Challenge workshop</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..800&display=swap" rel="stylesheet">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 16 16%22%3E%3Crect x=%225%22 y=%221%22 width=%226%22 height=%2214%22 fill=%22%23f0a53a%22/%3E%3C/svg%3E">
+<link rel="stylesheet" href="css/app.css">
+<script type="importmap">
+{ "imports": {
+    "three": "./vendor/three/build/three.module.js",
+    "three/addons/": "./vendor/three/addons/"
+} }
+</script>
+</head>
+<body>
+<canvas id="view" aria-label="3D view of a frac tree"></canvas>
+
+<header class="title">
+  <h1>Frac tree</h1>
+  <p>7-1/16 in bore, 15,000 psi. Click a part to inspect it, or pull the stack apart below.</p>
+  <nav class="switch" id="switch" aria-label="Machines"></nav>
+</header>
+
+<nav class="stack" aria-label="Parts, top of the tree first">
+  <ol id="stack-list"></ol>
+</nav>
+
+<aside class="plate" id="plate" hidden aria-live="polite">
+  <div class="plate-inner">
+    <h2 id="plate-name"></h2>
+    <p id="plate-does"></p>
+    <dl id="plate-specs"></dl>
+    <p class="plate-est" id="plate-est"></p>
+  </div>
+</aside>
+
+<div class="explode">
+  <label for="explode">Assembled</label>
+  <input id="explode" autocomplete="off" type="range" min="0" max="1" step="0.001" value="0">
+  <span>Exploded</span>
+</div>
+
+<footer class="disclaimer">
+  A game, not an engineering tool. Economics are illustrative, the oil is the SPE1 benchmark fluid, and the
+  reservoir is a 2D one-layer model. Dimensions marked estimated are sized from photographs.
+</footer>
+
+<div class="perf" id="perf" hidden></div>
+<script type="module" src="js/main.js"></script>
+</body>
+</html>

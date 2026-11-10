@@ -1,0 +1,14 @@
+# run outputs
+examples/*_out/
+validation/results_quick.toml
+__pycache__/
+*.pyc
+
+# game runtime data (saves, caches and run folders written while playing)
+game/runs/
+game/truthcache/
+game/mg/
+game/careers/
+game/steer/
+game/scores.json
+game/stars.json

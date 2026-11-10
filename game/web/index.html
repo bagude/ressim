@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Frac Challenge</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..800&display=swap" rel="stylesheet">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 16 16%22%3E%3Crect x=%225%22 y=%221%22 width=%226%22 height=%2214%22 fill=%22%23f0a53a%22/%3E%3C/svg%3E">
+<link rel="stylesheet" href="css/title.css">
+</head>
+<body class="title">
+<canvas id="land" aria-hidden="true"></canvas>
+<main class="front">
+  <h1>Frac Challenge</h1>
+  <p class="pitch">Plan the pads, win the board's budget, and live with what the rock delivers.</p>
+  <nav class="menu" aria-label="Main menu">
+    <a id="continue" class="item primary" href="career.html" hidden>
+      <span class="name">Continue</span><span class="desc" id="continue-desc"></span>
+    </a>
+    <a class="item" href="career.html?new=1">
+      <span class="name">New career</span><span class="desc">Run an oil asset for five years. Promise the board a volume, then deliver it.</span>
+    </a>
+    <a class="item" href="challenges.html">
+      <span class="name">Challenges</span><span class="desc">Design one frac job, run it on the reservoir simulator, and chase the leaderboard.</span>
+    </a>
+    <a class="item" href="minigames.html">
+      <span class="name">Minigames</span><span class="desc">Practise the eleven field jobs your career will hand you, from a pump job to a kick.</span>
+    </a>
+    <a class="item" href="workshop.html">
+      <span class="name">Workshop</span><span class="desc">Take apart a 15K frac tree and a 2,500 hp pump trailer, built from public data sheets.</span>
+    </a>
+  </nav>
+  <p class="fine">A game, not an engineering tool. Production comes from a 2D one-layer reservoir simulator on the SPE1 benchmark oil; economics and the land are illustrative.</p>
+</main>
+<script type="module" src="js/title.js"></script>
+</body>
+</html>

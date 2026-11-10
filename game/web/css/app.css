@@ -1,0 +1,83 @@
+:root {
+  --bluestone: #16202a;
+  --slate: #22303c;
+  --slate-2: #2c3c4a;
+  --bone: #e7e2d6;
+  --bone-dim: #a9b0b3;
+  --gauge: #f0a53a;
+  --api-red: #c8463a;
+  --plate-steel: #c9c6bd;
+  --plate-ink: #1f2428;
+  --font: 'Archivo', system-ui, sans-serif;
+  --gutter: 16px;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; background: var(--bluestone); color: var(--bone); font-family: var(--font);
+  font-variation-settings: 'wdth' 100; -webkit-font-smoothing: antialiased; overflow: hidden; }
+#view { position: fixed; inset: 0; width: 100%; height: 100%; display: block; outline: none; }
+
+.title { position: fixed; top: 20px; left: 24px; max-width: 34ch; pointer-events: none; }
+.title h1 { margin: 0; font-size: 30px; line-height: 1.05; font-weight: 750; font-variation-settings: 'wdth' 125; letter-spacing: 0.01em; }
+.switch { display: flex; gap: 4px; margin-top: 14px; pointer-events: auto; }
+.switch a { padding: 5px 12px; font-size: 13px; color: var(--bone-dim); text-decoration: none; border: 1px solid var(--slate-2); border-radius: 999px; }
+.switch a:hover { color: var(--bone); }
+.switch a:focus-visible { outline: 2px solid var(--gauge); outline-offset: 2px; }
+.switch a[aria-current='page'] { color: var(--bluestone); background: var(--gauge); border-color: var(--gauge); }
+.title p { margin: 8px 0 0; font-size: 14px; line-height: 1.45; color: var(--bone-dim); }
+
+/* the stack: a real top-to-bottom sequence, so it is an ordered list joined by a pipe */
+.stack { position: fixed; left: 24px; top: 50%; transform: translateY(-50%); }
+.stack ol { list-style: none; margin: 0; padding: 0 0 0 18px; position: relative; }
+.stack ol::before { content: ''; position: absolute; left: 5px; top: 10px; bottom: 10px; width: 2px; background: var(--slate-2); }
+.stack li { position: relative; margin: 2px 0; }
+.stack button { all: unset; cursor: pointer; display: block; padding: 6px 10px; font-size: 14px; line-height: 1.2; color: var(--bone-dim);
+  border-radius: 4px; }
+.stack button::before { content: ''; position: absolute; left: -17px; top: 50%; width: 10px; height: 10px; margin-top: -5px;
+  border-radius: 50%; background: var(--bluestone); border: 2px solid var(--slate-2); }
+.stack button:hover { color: var(--bone); }
+.stack button:focus-visible { outline: 2px solid var(--gauge); outline-offset: 2px; }
+.stack button[aria-current='true'] { color: var(--bone); background: var(--slate); }
+.stack button[aria-current='true']::before { background: var(--gauge); border-color: var(--gauge); }
+
+/* the nameplate: stamped stainless, four rivets, etched type. The one loud element on screen. */
+.plate { position: fixed; right: 24px; top: 50%; transform: translateY(-50%); width: min(340px, calc(100vw - 32px)); }
+.plate-inner { position: relative; padding: 22px 24px 18px; color: var(--plate-ink); border-radius: 6px;
+  background:
+    radial-gradient(circle at 12px 12px, #8d8a83 3px, #e9e6de 4px, transparent 5px),
+    radial-gradient(circle at calc(100% - 12px) 12px, #8d8a83 3px, #e9e6de 4px, transparent 5px),
+    radial-gradient(circle at 12px calc(100% - 12px), #8d8a83 3px, #e9e6de 4px, transparent 5px),
+    radial-gradient(circle at calc(100% - 12px) calc(100% - 12px), #8d8a83 3px, #e9e6de 4px, transparent 5px),
+    repeating-linear-gradient(90deg, rgba(255,255,255,0.05) 0 1px, rgba(0,0,0,0.04) 1px 3px),
+    linear-gradient(160deg, #dcd9d1, var(--plate-steel) 55%, #b4b1a8);
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.5), inset 0 0 0 3px rgba(0,0,0,0.12), 0 18px 40px rgba(0,0,0,0.45); }
+.plate h2 { margin: 0 0 8px; font-size: 19px; line-height: 1.15; font-weight: 800; font-variation-settings: 'wdth' 125;
+  text-shadow: 0 1px 0 rgba(255,255,255,0.6), 0 -1px 0 rgba(0,0,0,0.25); }
+.plate p { margin: 0 0 12px; font-size: 14px; line-height: 1.45; }
+.plate dl { margin: 0; display: grid; gap: 6px; }
+.plate dl div { padding-top: 6px; border-top: 1px solid rgba(31,36,40,0.22); font-size: 13.5px; font-variant-numeric: tabular-nums; }
+.plate-est { margin: 12px 0 0 !important; font-size: 12.5px !important; color: #5b5a55; }
+
+.explode { position: fixed; left: 50%; bottom: 64px; transform: translateX(-50%); display: flex; align-items: center; gap: 14px;
+  font-size: 13px; color: var(--bone-dim); padding: 10px 16px; background: rgba(22,32,42,0.72); border-radius: 999px;
+  backdrop-filter: blur(6px); }
+.explode input { width: min(360px, 50vw); accent-color: var(--gauge); }
+.explode input:focus-visible { outline: 2px solid var(--gauge); outline-offset: 4px; }
+
+.disclaimer { position: fixed; left: 50%; bottom: 16px; transform: translateX(-50%); width: min(760px, calc(100vw - 32px));
+  font-size: 12px; line-height: 1.4; color: #7f8a90; text-align: center; }
+.perf { position: fixed; right: 12px; bottom: 12px; font-size: 12px; color: var(--bone-dim); font-variant-numeric: tabular-nums; }
+
+/* hover label that follows the pointer over a part */
+.hover-tag { position: fixed; pointer-events: none; padding: 4px 8px; font-size: 13px; background: var(--slate); color: var(--bone);
+  border-left: 3px solid var(--gauge); border-radius: 3px; transform: translate(14px, -50%); white-space: nowrap; }
+
+@media (max-width: 760px) {
+  .title h1 { font-size: 24px; }
+  .stack { top: auto; bottom: 120px; transform: none; left: var(--gutter); }
+  .stack button { padding: 4px 8px; font-size: 13px; }
+  .plate { top: auto; bottom: 120px; right: var(--gutter); transform: none; width: min(260px, calc(100vw - 32px)); }
+  .explode { bottom: 72px; width: calc(100vw - 32px); }
+  .explode input { flex: 1; width: auto; }
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+.switch a.back { margin-left: 10px; color: var(--gauge, #f0a53a); border-color: currentColor; }

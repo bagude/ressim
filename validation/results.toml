@@ -1,0 +1,2607 @@
+julia = "1.11.9"
+tier = "full"
+date = "2026-11-10"
+engine = "JutulDarcy 0.3.11"
+
+[[test]]
+kind = "exact"
+cells = 57
+status = "pass"
+reference = "closed-form linear diffusion (series solution)"
+id = "exact_slab_inf"
+ministeps = 333
+title = "Single-phase depletion, infinite-acting (square-root-of-time flow)"
+seconds = 34.12
+cuts = 0
+
+    [[test.checks]]
+    name = "cum"
+    bar = 0.0025
+    value = -0.0007791347877369478
+    pass = true
+    [[test.checks]]
+    name = "curve"
+    bar = 0.005
+    value = 0.002590861079933697
+    pass = true
+    [[test.checks]]
+    name = "month1"
+    bar = 0.01
+    value = -0.007116469635675456
+    pass = true
+[[test]]
+kind = "exact"
+cells = 42
+status = "pass"
+reference = "closed-form linear diffusion (series solution)"
+id = "exact_slab_trans"
+ministeps = 333
+title = "Single-phase depletion, transient to boundary-dominated"
+seconds = 0.24
+cuts = 0
+
+    [[test.checks]]
+    name = "cum"
+    bar = 0.0025
+    value = -0.0009983762477031473
+    pass = true
+    [[test.checks]]
+    name = "curve"
+    bar = 0.005
+    value = 0.0026589704824033235
+    pass = true
+    [[test.checks]]
+    name = "month1"
+    bar = 0.01
+    value = -0.007629039721360838
+    pass = true
+[[test]]
+kind = "exact"
+cells = 33
+status = "pass"
+reference = "closed-form linear diffusion (series solution)"
+id = "exact_slab_depl"
+ministeps = 333
+title = "Single-phase depletion, drained to the well pressure"
+seconds = 0.23
+cuts = 0
+
+    [[test.checks]]
+    name = "cum"
+    bar = 0.0025
+    value = 6.992692576701736e-5
+    pass = true
+    [[test.checks]]
+    name = "curve"
+    bar = 0.02
+    value = 0.012892593009355552
+    pass = true
+    [[test.checks]]
+    name = "month1"
+    bar = 0.01
+    value = -0.009773343626081427
+    pass = true
+[[test]]
+kind = "exact"
+cells = 42
+status = "pass"
+reference = "closed-form linear diffusion (series solution)"
+id = "robust_contrast_1e5"
+ministeps = 334
+title = "Robustness: 1e5 mD strip against 2.5 microdarcy rock"
+seconds = 0.27
+cuts = 0
+
+    [[test.checks]]
+    name = "cum"
+    bar = 0.0025
+    value = -0.000998683401493778
+    pass = true
+    [[test.checks]]
+    name = "curve"
+    bar = 0.005
+    value = 0.00265903651245848
+    pass = true
+    [[test.checks]]
+    name = "month1"
+    bar = 0.01
+    value = -0.0076296633791469734
+    pass = true
+    [[test.checks]]
+    name = "cut_fraction"
+    bar = 0.05
+    value = 0.0
+    pass = true
+[[test]]
+kind = "exact"
+cells = 42
+status = "pass"
+reference = "closed-form linear diffusion (series solution)"
+id = "robust_contrast_1e6"
+ministeps = 334
+title = "Robustness: 1e6 mD strip against 2.5 microdarcy rock"
+seconds = 0.21
+cuts = 0
+
+    [[test.checks]]
+    name = "cum"
+    bar = 0.0025
+    value = -0.0009986830378100413
+    pass = true
+    [[test.checks]]
+    name = "curve"
+    bar = 0.005
+    value = 0.0026590359569562618
+    pass = true
+    [[test.checks]]
+    name = "month1"
+    bar = 0.01
+    value = -0.0076296613127358
+    pass = true
+    [[test.checks]]
+    name = "cut_fraction"
+    bar = 0.05
+    value = 0.0
+    pass = true
+[[test]]
+cells = 1000
+status = "pass"
+id = "exact_buckley_leverett"
+ministeps = 1000
+reference = "Buckley-Leverett / Welge closed form"
+seconds = 17.28
+kind = "exact"
+detail = "L1 at 100 cells 0.0660, at 1000 cells 0.0117; exact front at 0.7186"
+title = "Two-phase water flood, Buckley-Leverett front"
+cuts = 0
+
+    [[test.checks]]
+    name = "L1_1000"
+    bar = 0.02
+    value = 0.01171546738603056
+    pass = true
+    [[test.checks]]
+    name = "L1_ratio"
+    bar = 0.3333333333333333
+    value = 0.17750106285710598
+    pass = true
+    [[test.checks]]
+    name = "front"
+    bar = 0.01
+    value = 0.007060880638213529
+    pass = true
+    [[test.checks]]
+    name = "injected"
+    bar = 0.002
+    value = -1.5569477891386185e-6
+    pass = true
+[[test]]
+kind = "exact"
+cells = 800
+status = "pass"
+detail = "length 698 m after 60 min, efficiency 18.1%"
+reference = "conservation: injected = in the fracture + leaked off"
+id = "growth_volume_balance"
+title = "Fracture growth: fluid account with leak-off"
+seconds = 0.32
+
+    [[test.checks]]
+    name = "balance"
+    bar = 1.0e-9
+    value = 1.573151131987132e-14
+    pass = true
+[[test]]
+kind = "exact"
+cells = 800
+status = "pass"
+detail = "similarity constants: length 0.5786, inlet opening 2.9217 (rate per wing, plane-strain modulus)"
+reference = "similarity solution by shooting (a different numerical method), itself checked against published constants (PyFrac, Dontsov 2021)"
+id = "growth_no_leakoff"
+title = "Fracture growth without leak-off: length and opening against the similarity solution"
+seconds = 0.38
+
+    [[test.checks]]
+    name = "L_exponent"
+    bar = 0.01
+    value = -0.0012877681037652966
+    pass = true
+    [[test.checks]]
+    name = "w_exponent"
+    bar = 0.01
+    value = 6.25692296754854e-5
+    pass = true
+    [[test.checks]]
+    name = "length"
+    bar = 0.01
+    value = 0.0026562509378058596
+    pass = true
+    [[test.checks]]
+    name = "opening"
+    bar = 0.01
+    value = -8.798068922055702e-5
+    pass = true
+    [[test.checks]]
+    name = "grid"
+    bar = 0.01
+    value = 0.0021505475189997902
+    pass = true
+    [[test.checks]]
+    name = "similarity_volume"
+    bar = 0.0001
+    value = 2.139288746150214e-11
+    pass = true
+    [[test.checks]]
+    name = "published_length"
+    bar = 0.002
+    value = 1.3040470816960692e-5
+    pass = true
+    [[test.checks]]
+    name = "published_opening"
+    bar = 0.002
+    value = 0.00021440997453558985
+    pass = true
+    [[test.checks]]
+    name = "balance"
+    bar = 1.0e-9
+    value = 4.767124642385249e-16
+    pass = true
+[[test]]
+kind = "exact"
+cells = 800
+status = "pass"
+detail = "efficiency 1.2%; the limit assumes 0%, so the solver should sit slightly below it. Measured shortfall at 400 / 800 / 1,600 cells: 3.6% / 2.9% / 2.4% (2026-11-09), i.e. the solver converges slowly here and about 1.5 points of the gap at 800 cells is numerical"
+reference = "closed form when nearly all fluid leaks off: L = q sqrt(t) / (pi C h)"
+id = "growth_leakoff_limit"
+title = "Fracture growth with heavy leak-off: length against the leak-off limit"
+seconds = 0.45
+
+    [[test.checks]]
+    name = "length"
+    bar = 0.03
+    value = -0.028924973852875957
+    pass = true
+    [[test.checks]]
+    name = "balance"
+    bar = 1.0e-9
+    value = 7.389043195697135e-15
+    pass = true
+[[test]]
+kind = "exact"
+status = "pass"
+detail = "a first version had the layer correction twice too large; the area check could not see it (the error cancels in the integral), the uniform-load and tip checks did"
+reference = "the uniform-pressure crack, the reciprocity area and the weight-function stress intensity (plane strain)"
+id = "height_section_formulas"
+title = "Height growth: cross-section formulas (stress intensity, area, opening) checked against each other"
+seconds = 0.27
+
+    [[test.checks]]
+    name = "uniform"
+    bar = 0.001
+    value = 8.410633543731727e-6
+    pass = true
+    [[test.checks]]
+    name = "area"
+    bar = 0.005
+    value = 4.218463927063709e-7
+    pass = true
+    [[test.checks]]
+    name = "tip"
+    bar = 0.02
+    value = 0.004049915017658723
+    pass = true
+    [[test.checks]]
+    name = "interface"
+    bar = 0.005
+    value = 0.0011402157360926868
+    pass = true
+[[test]]
+kind = "exact"
+cells = 400
+status = "pass"
+reference = "the constant-height model above (checked against published constants)"
+id = "height_contained_limit"
+title = "Height growth with unbreakable barriers: must equal the constant-height model"
+seconds = 1.67
+
+    [[test.checks]]
+    name = "length"
+    bar = 0.005
+    value = -1.0492728907962601e-10
+    pass = true
+    [[test.checks]]
+    name = "pressure"
+    bar = 0.005
+    value = -2.5187515511060354e-6
+    pass = true
+    [[test.checks]]
+    name = "balance"
+    bar = 1.0e-9
+    value = 7.150686963577873e-16
+    pass = true
+    [[test.checks]]
+    name = "length_leakoff"
+    bar = 0.005
+    value = -1.0409626827190266e-8
+    pass = true
+    [[test.checks]]
+    name = "pressure_leakoff"
+    bar = 0.005
+    value = -9.200265875808356e-7
+    pass = true
+    [[test.checks]]
+    name = "balance_leakoff"
+    bar = 1.0e-9
+    value = -3.766028467484347e-14
+    pass = true
+[[test]]
+kind = "self"
+cells = 400
+status = "pass"
+detail = "98 ft pay, 60 min at 25 bpm per wing: 870 psi barrier gives 2267 ft half-length and 108 ft height at the well; 435 psi gives 2224 ft and 140 ft; 116 psi cannot contain the fracture"
+reference = "its own conditions: fluid account, mesh sensitivity, taller and shorter with a weaker barrier, runaway reported"
+id = "height_growth_barriers"
+title = "Height growth through barriers: 870 psi and 435 psi stress contrast, and a barrier too weak to hold"
+seconds = 3.91
+
+    [[test.checks]]
+    name = "balance"
+    bar = 1.0e-9
+    value = 2.5980829300999606e-14
+    pass = true
+    [[test.checks]]
+    name = "grid"
+    bar = 0.02
+    value = -0.009064512557377613
+    pass = true
+    [[test.checks]]
+    name = "table"
+    bar = 0.005
+    value = 3.038514084785504e-8
+    pass = true
+    [[test.checks]]
+    name = "table_height"
+    bar = 0.005
+    value = 1.0863861670262764e-6
+    pass = true
+    [[test.checks]]
+    name = "taller_when_weaker"
+    bar = 0.5
+    value = 0.0
+    pass = true
+    [[test.checks]]
+    name = "shorter_when_weaker"
+    bar = 0.5
+    value = 0.0
+    pass = true
+    [[test.checks]]
+    name = "runaway_reported"
+    bar = 0.5
+    value = 0.0
+    pass = true
+[[test]]
+kind = "cross"
+cells = 400
+status = "pass"
+detail = "K0: 132.7 mm long, 126.6 mm high (published 132.7, 127.5); K1: 142.9 mm long, 76.8 mm high (published 143.1, 76.8); K094: 161.5 mm long, 52.6 mm high (published 162.0, 53.0)"
+reference = "Dontsov & Peirce (2015) Fig. 8 and Adachi et al. (2010) Figs 9, 11, classical pseudo-3-D model (digitised, about 1%)"
+id = "height_growth_published"
+title = "Height growing through barriers: published laboratory-scale case at three toughness values"
+seconds = 1.6
+
+    [[test.checks]]
+    name = "length_K0"
+    bar = 0.03
+    value = -0.0002778830939629273
+    pass = true
+    [[test.checks]]
+    name = "height_K0"
+    bar = 0.03
+    value = -0.007307269945617478
+    pass = true
+    [[test.checks]]
+    name = "length_K1"
+    bar = 0.03
+    value = -0.0014964879279288912
+    pass = true
+    [[test.checks]]
+    name = "height_K1"
+    bar = 0.03
+    value = -0.00036496281113218565
+    pass = true
+    [[test.checks]]
+    name = "length_K094"
+    bar = 0.03
+    value = -0.003255364599861088
+    pass = true
+    [[test.checks]]
+    name = "height_K094"
+    bar = 0.03
+    value = -0.007889792771071047
+    pass = true
+[[test]]
+kind = "exact"
+status = "pass"
+detail = "2 to 10 contained fractures, spacing 0.01 to 5 heights: smallest eigenvalue of the coupling is 0.0065 with the height-weighted kernel (stable) and -0.039 with the centre-line value alone (unstable, not used). Grown fractures up to 1.5 times the pay height, equal and unequal pressures: smallest eigenvalue 0.071; positive definiteness is lost at 2.6 times the pay height for three clusters a quarter of a height apart and 1.8 times for five clusters a tenth apart"
+reference = "Sneddon's centre-line formula; the height-weighted value by two independent routes; positive-definite coupling"
+id = "shadow_kernel"
+title = "Stress shadow of one fracture on its neighbour: formula checks"
+seconds = 1.62
+
+    [[test.checks]]
+    name = "centre_line"
+    bar = 1.0e-6
+    value = 1.5543122344752192e-15
+    pass = true
+    [[test.checks]]
+    name = "two_routes"
+    bar = 1.0e-6
+    value = 9.878453610667748e-11
+    pass = true
+    [[test.checks]]
+    name = "table"
+    bar = 1.0e-5
+    value = 3.853399924702572e-7
+    pass = true
+    [[test.checks]]
+    name = "height_average"
+    bar = 0.001
+    value = 0.0004420652443329759
+    pass = true
+    [[test.checks]]
+    name = "positive_definite"
+    bar = 0.5
+    value = 0.0
+    pass = true
+    [[test.checks]]
+    name = "positive_definite_grown"
+    bar = 0.5
+    value = 0.0
+    pass = true
+[[test]]
+kind = "exact"
+status = "pass"
+detail = "0.01 m3/s through four 10 mm holes at Cd 0.7 costs 150 psi; field-unit constant 0.2376"
+reference = "orifice equation by hand; field-unit constant against the published 0.2369"
+id = "perforation_friction"
+title = "Pressure drop through a cluster's perforations"
+seconds = 0.0
+
+    [[test.checks]]
+    name = "by_hand"
+    bar = 1.0e-12
+    value = -1.1102230246251565e-16
+    pass = true
+    [[test.checks]]
+    name = "published_constant"
+    bar = 0.005
+    value = 0.00310473559976554
+    pass = true
+[[test]]
+kind = "self"
+cells = 200
+status = "pass"
+reference = "the single-fracture height-growth solver, itself checked against exact and published results"
+id = "multifrac_one_cluster"
+title = "A stage with one cluster must equal the single-fracture solver (with barriers, leak-off and proppant)"
+seconds = 3.25
+
+    [[test.checks]]
+    name = "length_contained"
+    bar = 1.0e-8
+    value = 0.0
+    pass = true
+    [[test.checks]]
+    name = "pressure_contained"
+    bar = 1.0e-8
+    value = 0.0
+    pass = true
+    [[test.checks]]
+    name = "height_contained"
+    bar = 1.0e-8
+    value = 0.0
+    pass = true
+    [[test.checks]]
+    name = "proppant_contained"
+    bar = 1.0e-8
+    value = 2.220446049250313e-16
+    pass = true
+    [[test.checks]]
+    name = "leaked_contained"
+    bar = 1.0e-8
+    value = 2.4302296662861196e-72
+    pass = true
+    [[test.checks]]
+    name = "length_barriers"
+    bar = 1.0e-8
+    value = 0.0
+    pass = true
+    [[test.checks]]
+    name = "pressure_barriers"
+    bar = 1.0e-8
+    value = -2.220446049250313e-16
+    pass = true
+    [[test.checks]]
+    name = "height_barriers"
+    bar = 1.0e-8
+    value = -5.551115123125783e-16
+    pass = true
+    [[test.checks]]
+    name = "proppant_barriers"
+    bar = 1.0e-8
+    value = 2.220446049250313e-16
+    pass = true
+    [[test.checks]]
+    name = "leaked_barriers"
+    bar = 1.0e-8
+    value = 1.1917811605963121e-16
+    pass = true
+    [[test.checks]]
+    name = "coupled_scheme_length"
+    bar = 0.02
+    value = 0.00018136582012417968
+    pass = true
+    [[test.checks]]
+    name = "coupled_scheme_height"
+    bar = 0.02
+    value = 0.0005774089339700694
+    pass = true
+[[test]]
+kind = "exact"
+cells = 300
+status = "pass"
+detail = "15 m apart in a 30 m pay the shadow factor is 0.483: half-length 2821 m against 2593 m alone"
+reference = "similarity solution with the modulus raised by the shadow factor (exact for two contained, identical fractures)"
+id = "multifrac_pair_stiffer"
+title = "Two identical fractures side by side: must grow like one fracture in stiffer rock"
+seconds = 2.44
+
+    [[test.checks]]
+    name = "length"
+    bar = 0.01
+    value = 0.005452606361546097
+    pass = true
+    [[test.checks]]
+    name = "net_pressure"
+    bar = 0.01
+    value = -7.037337766591101e-5
+    pass = true
+    [[test.checks]]
+    name = "shadow"
+    bar = 0.01
+    value = -0.0007375945025647201
+    pass = true
+    [[test.checks]]
+    name = "equal_split"
+    bar = 1.0e-6
+    value = 0.0
+    pass = true
+    [[test.checks]]
+    name = "balance"
+    bar = 1.0e-9
+    value = 2.9794529014907805e-16
+    pass = true
+[[test]]
+kind = "exact"
+cells = 150
+status = "pass"
+reference = "the limit of no interaction (a lone fracture on the same grid with the same flow scheme)"
+id = "multifrac_far_apart"
+title = "Three clusters far apart: equal shares, each the same as a fracture alone"
+seconds = 2.55
+
+    [[test.checks]]
+    name = "share"
+    bar = 0.001
+    value = 0.00023490273225834635
+    pass = true
+    [[test.checks]]
+    name = "length"
+    bar = 0.001
+    value = 2.1838594988832227e-5
+    pass = true
+    [[test.checks]]
+    name = "height"
+    bar = 0.001
+    value = 0.0002584742501428039
+    pass = true
+[[test]]
+kind = "exact"
+cells = 150
+status = "pass"
+detail = "shares 0.6664 and 0.3336; friction 300 MPa against 2.9 MPa net pressure"
+reference = "friction-dominated limit: rate ratio equals the ratio of perforation counts"
+id = "multifrac_limited_entry"
+title = "Two clusters with 6 and 3 perforations, friction far above net pressure: the split must follow the perforation count"
+seconds = 1.08
+
+    [[test.checks]]
+    name = "split"
+    bar = 0.005
+    value = -0.0009761379940511627
+    pass = true
+    [[test.checks]]
+    name = "friction"
+    bar = 0.02
+    value = -0.0007802560923971802
+    pass = true
+[[test]]
+kind = "self"
+cells = 150
+status = "pass"
+detail = "30 m pay, 60 bpm for 60 min. Three clusters 7.5 m apart: shares [0.468, 0.063, 0.468] with no perforation friction, [0.342, 0.317, 0.342] with 20 shots each, [0.334, 0.332, 0.334] with 6 shots. 15 m apart, 20 shots: [0.343, 0.314, 0.343]. Five clusters 3 m apart, 12 shots: [0.211, 0.195, 0.189, 0.195, 0.211]"
+reference = "its own conditions: mirror symmetry, reversal, fluid account per fracture, direction of every effect, mesh sensitivity"
+id = "multifrac_interaction"
+title = "Three and five clusters close together: the middle ones are squeezed, perforation friction evens the split"
+seconds = 21.25
+
+    [[test.checks]]
+    name = "mirror"
+    bar = 1.0e-6
+    value = 0.0
+    pass = true
+    [[test.checks]]
+    name = "mirror_five"
+    bar = 1.0e-6
+    value = 0.0
+    pass = true
+    [[test.checks]]
+    name = "reversal"
+    bar = 1.0e-6
+    value = 2.220446049250313e-16
+    pass = true
+    [[test.checks]]
+    name = "balance"
+    bar = 1.0e-9
+    value = 1.3407538056708515e-14
+    pass = true
+    [[test.checks]]
+    name = "no_backflow"
+    bar = 0.5
+    value = 0.0
+    pass = true
+    [[test.checks]]
+    name = "assembly"
+    bar = 1.0e-9
+    value = 0.0
+    pass = true
+    [[test.checks]]
+    name = "middle_squeezed"
+    bar = 0.5
+    value = 0.0
+    pass = true
+    [[test.checks]]
+    name = "friction_evens"
+    bar = 0.5
+    value = 0.0
+    pass = true
+    [[test.checks]]
+    name = "grid"
+    bar = 0.02
+    value = -3.886736505032129e-5
+    pass = true
+    [[test.checks]]
+    name = "grid_length"
+    bar = 0.02
+    value = 0.012790240372128947
+    pass = true
+[[test]]
+kind = "cross"
+cells = 200
+status = "pass"
+detail = "no friction: areas [3418, 2352, 2390, 2352, 3418] m2 (reference 3359, 1775, 1969, 1775, 3359); equal rates: [2752, 2904, 2923, 2904, 2752] m2 (reference 2476, 2630, 2630, 2630, 2476)"
+reference = "Protasov, Peirce & Dontsov (ARMA 2018) Figs 3, 4: ILSA footprint areas at 351 s (digitised, about 1%)"
+id = "multifrac_published"
+title = "Five fractures 20 m apart against a planar-3-D reference (ILSA), with no perforation friction and with equal rates"
+seconds = 14.75
+
+    [[test.checks]]
+    name = "share_outer"
+    bar = 0.2
+    value = -0.10604619247569869
+    pass = true
+    [[test.checks]]
+    name = "share_inner"
+    bar = 0.2
+    value = 0.163936345392659
+    pass = true
+    [[test.checks]]
+    name = "share_middle"
+    bar = 0.2
+    value = 0.06624900706338566
+    pass = true
+    [[test.checks]]
+    name = "total_area"
+    bar = 0.15
+    value = 0.13915742314209778
+    pass = true
+    [[test.checks]]
+    name = "equal_rate_ratio"
+    bar = 0.05
+    value = -0.006433648340432252
+    pass = true
+    [[test.checks]]
+    name = "equal_rate_total"
+    bar = 0.15
+    value = 0.108594488267578
+    pass = true
+[[test]]
+cells = 6480
+status = "pass"
+id = "chain_clusters_to_production"
+ministeps = 109
+reference = "its own conditions: shares add up, outer clusters mirror each other in growth and in production, strong friction evens the split"
+seconds = 39.27
+kind = "self"
+detail = "three clusters 40 ft apart at 45 bpm per stage: 24 shots each gives shares [0.356, 0.289, 0.356] and half-lengths [493, 391, 493] ft; 4 shots each gives [0.334, 0.332, 0.334] and [457, 452, 457] ft"
+title = "Stages with several clusters to production in one call: weak against strong perforation friction"
+cuts = 0
+
+    [[test.checks]]
+    name = "fractures"
+    bar = 0.5
+    value = 0.0
+    pass = true
+    [[test.checks]]
+    name = "shares_add_up"
+    bar = 1.0e-9
+    value = 1.1102230246251565e-16
+    pass = true
+    [[test.checks]]
+    name = "mirror_growth"
+    bar = 1.0e-6
+    value = 0.0
+    pass = true
+    [[test.checks]]
+    name = "friction_evens"
+    bar = 0.5
+    value = 0.0
+    pass = true
+    [[test.checks]]
+    name = "oil_positive"
+    bar = 0.5
+    value = 0.0
+    pass = true
+[[test]]
+kind = "exact"
+status = "pass"
+detail = "30 m pay, barrier 4 MPa above and 2 MPa below, 1.5 MPa net pressure: the fracture grows 2.8 m up and 15.5 m down"
+reference = "the symmetric three-layer formulas; stress intensity read from the opening at both tips; area by two routes"
+id = "layers_section_formulas"
+title = "Height in layered rock: cross-section formulas with unequal barriers, and equal barriers against the three-layer formulas"
+seconds = 3.02
+
+    [[test.checks]]
+    name = "equal_top"
+    bar = 1.0e-9
+    value = 2.220446049250313e-16
+    pass = true
+    [[test.checks]]
+    name = "equal_bottom"
+    bar = 1.0e-9
+    value = 2.220446049250313e-16
+    pass = true
+    [[test.checks]]
+    name = "equal_area"
+    bar = 1.0e-9
+    value = 1.1102230246251565e-16
+    pass = true
+    [[test.checks]]
+    name = "equal_flow"
+    bar = 0.001
+    value = 3.363082682983354e-5
+    pass = true
+    [[test.checks]]
+    name = "area"
+    bar = 1.0e-6
+    value = 9.632676323256817e-9
+    pass = true
+    [[test.checks]]
+    name = "tip_up"
+    bar = 0.02
+    value = 0.002705563900118113
+    pass = true
+    [[test.checks]]
+    name = "tip_down"
+    bar = 0.02
+    value = 0.000329505600065394
+    pass = true
+    [[test.checks]]
+    name = "resting"
+    bar = 1.0e-9
+    value = 2.7755575615628914e-15
+    pass = true
+    [[test.checks]]
+    name = "fluid_weight"
+    bar = 0.02
+    value = 0.005625968604218379
+    pass = true
+[[test]]
+kind = "cross"
+status = "pass"
+detail = "A: 3.76 ft up and 1.62 ft down at 200 psi, 140 and 33 ft at 600 psi (printed 3.76, 1.62, 140, 33). B: starts at 5809 psi, 5777 psi without toughness (printed 5809, 5777); upper tip at 8990 ft at 6898 psi with the lower tip at 9500 ft (printed 6898 psi, 9501 ft)"
+reference = "S. Liu, Texas A&M dissertation (2017), Tables 2 to 7, printed values"
+id = "layers_published"
+title = "Height in layered rock with fluid weight: two published cases (three layers; six layers with a jump through a weak layer)"
+seconds = 0.61
+
+    [[test.checks]]
+    name = "A_up_200"
+    bar = 0.02
+    value = -0.00018465260915623283
+    pass = true
+    [[test.checks]]
+    name = "A_down_200"
+    bar = 0.02
+    value = -0.0023877866413166693
+    pass = true
+    [[test.checks]]
+    name = "A_up_600"
+    bar = 0.02
+    value = -0.002530044592799263
+    pass = true
+    [[test.checks]]
+    name = "A_down_600"
+    bar = 0.02
+    value = -0.001479770668871172
+    pass = true
+    [[test.checks]]
+    name = "B_start"
+    bar = 0.01
+    value = 0.0019230787005103135
+    pass = true
+    [[test.checks]]
+    name = "B_start_no_toughness"
+    bar = 0.01
+    value = 0.005469269839121299
+    pass = true
+    [[test.checks]]
+    name = "B_top_pressure"
+    bar = 0.01
+    value = -0.00029158818359805713
+    pass = true
+    [[test.checks]]
+    name = "B_lower_tip_ft"
+    bar = 2.0
+    value = -1.0790060047947918
+    pass = true
+[[test]]
+kind = "exact"
+cells = 200
+status = "pass"
+reference = "the symmetric height-growth solver (same equations, different cross-section code)"
+id = "layers_equal_barriers"
+title = "Growth in layered rock with equal barriers must equal the three-layer height-growth solver"
+seconds = 1.14
+
+    [[test.checks]]
+    name = "length"
+    bar = 0.005
+    value = 1.198947450209431e-7
+    pass = true
+    [[test.checks]]
+    name = "pressure"
+    bar = 0.005
+    value = -5.429227007858195e-6
+    pass = true
+    [[test.checks]]
+    name = "height"
+    bar = 0.005
+    value = -6.926792631145595e-6
+    pass = true
+    [[test.checks]]
+    name = "balance"
+    bar = 1.0e-9
+    value = -2.0379457846196935e-14
+    pass = true
+[[test]]
+kind = "self"
+cells = 200
+status = "pass"
+detail = "98 ft pay, 870 psi barrier above and 435 psi below, 60 min at 25 bpm per wing: 4060 ft half-length, 7 ft above the pay and 33 ft below it at the well (equal barriers: 7 ft each side at 870 psi, 30 ft at 435 psi)"
+reference = "its own conditions: fluid account, mirror image, between the two equal-barrier cases, table sensitivity"
+id = "layers_unequal_barriers"
+title = "Growth with a strong barrier above and a weak one below: grows into the weak side, mirrors when the rock is turned over"
+seconds = 2.64
+
+    [[test.checks]]
+    name = "balance"
+    bar = 1.0e-9
+    value = -1.6446580016229105e-14
+    pass = true
+    [[test.checks]]
+    name = "mirror"
+    bar = 1.0e-9
+    value = 6.781604167116484e-10
+    pass = true
+    [[test.checks]]
+    name = "into_the_weak_side"
+    bar = 0.5
+    value = 0.0
+    pass = true
+    [[test.checks]]
+    name = "height_between"
+    bar = 0.5
+    value = 0.0
+    pass = true
+    [[test.checks]]
+    name = "length_between"
+    bar = 0.5
+    value = 0.0
+    pass = true
+    [[test.checks]]
+    name = "table"
+    bar = 0.005
+    value = 2.689074680706227e-7
+    pass = true
+    [[test.checks]]
+    name = "table_height"
+    bar = 0.005
+    value = -1.0736747236395061e-5
+    pass = true
+[[test]]
+kind = "self"
+cells = 150
+status = "pass"
+detail = "shares [0.337, 0.327, 0.337]; growth above / below the pay at the well: 2 / 7 ft, 2 / 7 ft, 2 / 7 ft"
+reference = "its own conditions: outer clusters identical, fluid account per fracture, every fracture grows into the weak side"
+id = "layers_with_clusters"
+title = "Three clusters between unequal barriers: mirror image and fluid account"
+seconds = 1.57
+
+    [[test.checks]]
+    name = "mirror"
+    bar = 1.0e-6
+    value = 0.0
+    pass = true
+    [[test.checks]]
+    name = "balance"
+    bar = 1.0e-9
+    value = 1.0527400251934093e-14
+    pass = true
+    [[test.checks]]
+    name = "into_the_weak_side"
+    bar = 0.5
+    value = 0.0
+    pass = true
+[[test]]
+kind = "self"
+cells = 150
+status = "pass"
+detail = "three clusters 10 m apart, the earlier stage 20 m away: shares [0.343, 0.314, 0.343] alone, [0.329, 0.317, 0.354] half an hour after the earlier stage, [0.343, 0.314, 0.343] two days after; the earlier stage adds 59 psi at the nearest cluster and 28 psi at the farthest"
+reference = "exact for a uniform background (same fracture, wellbore pressure higher by the background); otherwise direction of each effect and the fluid account"
+id = "stage_shadow"
+title = "Stress left by an earlier stage: a uniform background changes nothing but the pressure; a nearby open fracture pushes fluid to the far clusters"
+seconds = 6.5
+
+    [[test.checks]]
+    name = "uniform_same_length"
+    bar = 1.0e-9
+    value = 0.0
+    pass = true
+    [[test.checks]]
+    name = "uniform_same_pressure"
+    bar = 1.0e-9
+    value = 0.0
+    pass = true
+    [[test.checks]]
+    name = "uniform_wellbore"
+    bar = 1.0e-9
+    value = -1.9984014443252818e-15
+    pass = true
+    [[test.checks]]
+    name = "near_cluster_gets_less"
+    bar = 0.5
+    value = 0.0
+    pass = true
+    [[test.checks]]
+    name = "fades_with_waiting"
+    bar = 0.5
+    value = 0.0
+    pass = true
+    [[test.checks]]
+    name = "balance"
+    bar = 1.0e-9
+    value = 1.733048437700471e-14
+    pass = true
+[[test]]
+kind = "self"
+status = "pass"
+detail = "stages 150 ft apart, three clusters each, two hours between stages: shares [0.361, 0.278, 0.361] in the first stage, [0.353, 0.28, 0.367] in the second, [0.353, 0.28, 0.367] in the third; the earlier stage adds 20 psi at the nearest cluster"
+reference = "its own conditions: first stage identical with and without the effect; in later stages the cluster next to the earlier stage takes less than the far one"
+id = "chain_stage_shadow"
+title = "Stages pumped one after another: the first is unaffected, later ones lean away from the stage before"
+seconds = 5.47
+
+    [[test.checks]]
+    name = "first_stage_same"
+    bar = 1.0e-12
+    value = 0.0
+    pass = true
+    [[test.checks]]
+    name = "second_leans_away"
+    bar = 0.5
+    value = 0.0
+    pass = true
+    [[test.checks]]
+    name = "third_like_second"
+    bar = 0.01
+    value = 0.0
+    pass = true
+    [[test.checks]]
+    name = "shares_add_up"
+    bar = 1.0e-9
+    value = 0.0
+    pass = true
+[[test]]
+kind = "exact"
+status = "pass"
+detail = "512 x 512 nodes, range 8 cells, three seeds: worst variogram miss 0.007 of the sill; porosity against log-permeability correlation 0.71 (asked 0.70)"
+reference = "a direct Fourier sum; the variogram model the field was generated from (statistical tolerance); interpolation of a plane"
+id = "geology_fields"
+title = "Rock properties as random fields: the variogram asked for is the variogram obtained; reproducible; sampled anywhere"
+seconds = 2.87
+
+    [[test.checks]]
+    name = "transform"
+    bar = 1.0e-10
+    value = 3.1279407721626787e-15
+    pass = true
+    [[test.checks]]
+    name = "variogram"
+    bar = 0.06
+    value = 0.006845708822751595
+    pass = true
+    [[test.checks]]
+    name = "mean"
+    bar = 0.05
+    value = 0.00037564664247425234
+    pass = true
+    [[test.checks]]
+    name = "clipped_spectrum"
+    bar = 0.01
+    value = 0.0
+    pass = true
+    [[test.checks]]
+    name = "nugget"
+    bar = 0.06
+    value = 0.0006909437694148091
+    pass = true
+    [[test.checks]]
+    name = "two_ranges"
+    bar = 0.06
+    value = 0.0070827374440323165
+    pass = true
+    [[test.checks]]
+    name = "same_seed_same_field"
+    bar = 0.0
+    value = 0.0
+    pass = true
+    [[test.checks]]
+    name = "other_seed_other_field"
+    bar = 0.5
+    value = 0.0
+    pass = true
+    [[test.checks]]
+    name = "interpolation"
+    bar = 1.0e-10
+    value = 7.105427357601002e-15
+    pass = true
+    [[test.checks]]
+    name = "tied_properties"
+    bar = 0.07
+    value = 0.007969261596368016
+    pass = true
+[[test]]
+kind = "exact"
+status = "pass"
+detail = "2 degree dip: 209.5 ft deeper after 6,000 ft down dip, 3.6e-12 ft along strike; a 40 ft fault crossed at its middle steps the pay 40.0 ft, at a quarter of its length 30.0 ft"
+reference = "plane geometry by hand: depth gain along a dipping plane, crossing position, parabolic throw along the trace, exponential die-out"
+id = "structure_surface"
+title = "Top-of-pay surface with faults: dip along a lateral, where a fault is crossed and by how much, base from gross thickness"
+seconds = 0.23
+
+    [[test.checks]]
+    name = "dip_ft"
+    bar = 1.0e-6
+    value = 3.097966327914037e-12
+    pass = true
+    [[test.checks]]
+    name = "along_strike_ft"
+    bar = 1.0e-6
+    value = 3.637978807091713e-12
+    pass = true
+    [[test.checks]]
+    name = "crossing_md_ft"
+    bar = 1.0e-6
+    value = 0.0
+    pass = true
+    [[test.checks]]
+    name = "throw_mid_ft"
+    bar = 0.0001
+    value = -2.0001607481390238e-8
+    pass = true
+    [[test.checks]]
+    name = "throw_quarter_ft"
+    bar = 0.0001
+    value = -1.4999386621639132e-8
+    pass = true
+    [[test.checks]]
+    name = "other_way_ft"
+    bar = 0.0001
+    value = 2.0001607481390238e-8
+    pass = true
+    [[test.checks]]
+    name = "no_crossing_past_tip"
+    bar = 1.0e-9
+    value = 0.0
+    pass = true
+    [[test.checks]]
+    name = "die_out_ft"
+    bar = 1.0e-9
+    value = -3.5704772471945034e-13
+    pass = true
+    [[test.checks]]
+    name = "base_ft"
+    bar = 1.0e-9
+    value = 0.0
+    pass = true
+    [[test.checks]]
+    name = "own_md"
+    bar = 0.0
+    value = 0.0
+    pass = true
+    [[test.checks]]
+    name = "model_coordinates_ft"
+    bar = 1.0e-9
+    value = 0.0
+    pass = true
+    [[test.checks]]
+    name = "same_seed_same_faults"
+    bar = 0.0
+    value = 0.0
+    pass = true
+[[test]]
+cells = 2318
+status = "pass"
+id = "fracwell_faults"
+ministeps = 187
+reference = "its own conditions: a multiplier of one changes nothing; two sealing faults leave the strip between them; leakier faults give more"
+seconds = 10.5
+kind = "self"
+detail = "12-month oil: 13725 stb without faults; 2535 with two sealing faults 90 ft either side of the lateral (a model of just that strip gives 2534); 9565 when they leak at 1%"
+title = "Sealing and leaky faults in a fractured-well model"
+cuts = 0
+
+    [[test.checks]]
+    name = "open_fault_same"
+    bar = 1.0e-9
+    value = 0.0
+    pass = true
+    [[test.checks]]
+    name = "sealed_equals_strip"
+    bar = 0.02
+    value = 0.00034713576671108193
+    pass = true
+    [[test.checks]]
+    name = "leakier_gives_more"
+    bar = 0.5
+    value = 0.0
+    pass = true
+    [[test.checks]]
+    name = "cut_fraction"
+    bar = 0.05
+    value = 0.0
+    pass = true
+[[test]]
+kind = "exact"
+status = "pass"
+detail = "turbulent friction uses the Colebrook-White equation; its constants are from recall and were not checked against a source"
+reference = "closed forms: rho g h, and Hagen-Poiseuille 128 mu L Q / (pi D^4)"
+id = "hydraulics_exact"
+title = "Pipe pressure drop, single-phase liquid: hydrostatic head and laminar friction"
+seconds = 0.0
+
+    [[test.checks]]
+    name = "hydrostatic"
+    bar = 0.0001
+    value = -2.471712834406503e-10
+    pass = true
+    [[test.checks]]
+    name = "laminar"
+    bar = 1.0e-10
+    value = -1.1102230246251565e-16
+    pass = true
+    [[test.checks]]
+    name = "colebrook_residual"
+    bar = 1.0e-9
+    value = -4.4941828036826337e-13
+    pass = true
+[[test]]
+kind = "exact"
+status = "pass"
+detail = "9,050 ft of 2.441 in tubing at 100 psia on top, 100 stb/d oil, 5 stb/d water, 300 Mscf/d gas: 189 psia at the bottom without slip, 3473 psia if the tubing were full of liquid"
+reference = "a hand calculation from the fluid tables, and the single-phase pipe formula in the gas-free limit"
+id = "lift_noslip_formulas"
+title = "Gas-liquid tubing without slip: mixture density, liquid limit and step refinement"
+seconds = 0.0
+
+    [[test.checks]]
+    name = "density"
+    bar = 0.0001
+    value = -2.352016477580321e-6
+    pass = true
+    [[test.checks]]
+    name = "gas_free_limit"
+    bar = 1.0e-6
+    value = 2.463260706520032e-10
+    pass = true
+    [[test.checks]]
+    name = "steps"
+    bar = 0.001
+    value = -2.9502179614837587e-6
+    pass = true
+    [[test.checks]]
+    name = "below_liquid_only"
+    bar = 0.5
+    value = 0.0
+    pass = true
+[[test]]
+kind = "exact"
+status = "pass"
+detail = "9,050 ft, 100 psia on top, 100 stb/d oil, 300 Mscf/d gas: 189 psia without slip, 1136 psia with slip, 3473 psia liquid-filled; at 1 stb/d the slip model gives 2766 psia"
+reference = "an independent code's worked value for the gas fraction, and the exact limits of the relation"
+id = "lift_slip_formulas"
+title = "Gas-liquid tubing with slip: gas fraction, no-slip limit, and its place between the two bounds"
+seconds = 0.0
+
+    [[test.checks]]
+    name = "gas_fraction"
+    bar = 1.0e-6
+    value = 6.350475700855895e-14
+    pass = true
+    [[test.checks]]
+    name = "no_slip_limit"
+    bar = 1.0e-9
+    value = -7.771561172376096e-16
+    pass = true
+    [[test.checks]]
+    name = "between_bounds"
+    bar = 0.5
+    value = 0.0
+    pass = true
+    [[test.checks]]
+    name = "weak_well_loads_up"
+    bar = 0.5
+    value = 0.0
+    pass = true
+[[test]]
+cells = 300
+status = "fail"
+id = "cross_spe1"
+ministeps = 129
+notes = []
+reference = "OPM Flow results shipped with the benchmark"
+seconds = 2.5
+kind = "cross"
+detail = "producer pressure misses its 1% bar. Diagnostic 2026-11-09: capping our timestep at 10 and 2 days moves the difference to 2.2% and 2.5% (further from the reference), and tighter tolerances leave it at 1.7%, so it is not our timestep or tolerance error. The difference sits around the producer's switch to its pressure limit. Unresolved without a fine-step independent reference."
+title = "SPE1: three-phase black oil, gas injection (deck input)"
+cuts = 0
+
+    [[test.checks]]
+    name = "PROD:orat"
+    bar = 0.02
+    value = 0.004351700274261858
+    pass = true
+    [[test.checks]]
+    name = "PROD:grat"
+    bar = 0.02
+    value = 0.013634626910877422
+    pass = true
+    [[test.checks]]
+    name = "PROD:bhp"
+    bar = 0.01
+    value = 0.01724180582796606
+    pass = false
+    [[test.checks]]
+    name = "INJ:bhp"
+    bar = 0.01
+    value = 0.004855137997945729
+    pass = true
+[[test]]
+cells = 300
+status = "pass"
+id = "runner_summary_units"
+ministeps = 129
+notes = []
+reference = "the deck's own rate control"
+seconds = 1.2
+kind = "exact"
+title = "Deck runner: field-unit summary file (SPE1 producer held at 20,000 stb/d)"
+cuts = 0
+
+    [[test.checks]]
+    name = "oil_rate"
+    bar = 0.001
+    value = 2.220446049250313e-16
+    pass = true
+    [[test.checks]]
+    name = "run_file"
+    bar = 0.5
+    value = 0.0
+    pass = true
+[[test]]
+cells = 837
+status = "pass"
+id = "fracwell_exact_standard"
+ministeps = 343
+notes = []
+reference = "closed-form linear diffusion (series solution), worst of three stages"
+seconds = 7.86
+kind = "exact"
+title = "Fractured well builder, standard mesh: full-width fractures, single-phase oil"
+cuts = 0
+
+    [[test.checks]]
+    name = "cum"
+    bar = 0.01
+    value = -0.0003053368225008391
+    pass = true
+    [[test.checks]]
+    name = "curve"
+    bar = 0.02
+    value = 0.00449072378195024
+    pass = true
+    [[test.checks]]
+    name = "month1"
+    bar = 0.025
+    value = -0.004035685604540973
+    pass = true
+[[test]]
+cells = 3087
+status = "pass"
+id = "fracwell_exact_fine"
+ministeps = 343
+notes = []
+reference = "closed-form linear diffusion (series solution), worst of three stages"
+seconds = 3.34
+kind = "exact"
+title = "Fractured well builder, fine mesh: full-width fractures, single-phase oil"
+cuts = 0
+
+    [[test.checks]]
+    name = "cum"
+    bar = 0.0025
+    value = 0.0016220740346919909
+    pass = true
+    [[test.checks]]
+    name = "curve"
+    bar = 0.005
+    value = 0.0019366571214628262
+    pass = true
+    [[test.checks]]
+    name = "month1"
+    bar = 0.01
+    value = -0.0005390631041688516
+    pass = true
+[[test]]
+cells = 3705
+status = "pass"
+id = "fracwell_blackoil"
+ministeps = 344
+notes = []
+reference = "symmetry: identical stages must produce the same"
+seconds = 10.22
+kind = "self"
+detail = "coarse mesh, 24 months, per stage: 3320 stb oil, 10795 Mscf gas, 8.1 stb water"
+title = "Fractured well builder: three identical stages, live oil with gas and water, 3,500 psi drawdown"
+cuts = 0
+
+    [[test.checks]]
+    name = "oil_spread"
+    bar = 0.001
+    value = 1.6549284368120359e-9
+    pass = true
+    [[test.checks]]
+    name = "gas_spread"
+    bar = 0.001
+    value = 4.0112812279614493e-10
+    pass = true
+    [[test.checks]]
+    name = "cut_fraction"
+    bar = 0.05
+    value = 0.0
+    pass = true
+[[test]]
+kind = "exact"
+cells = 800
+status = "pass"
+detail = "proppant front at 1545 m of a 2600 m fracture after a 30% pad"
+reference = "with no leak-off and no slip the fluid keeps its order, so the fracture volume ahead of the proppant front equals the pad volume"
+id = "proppant_transport"
+title = "Proppant carried with the slurry: pad-volume rule, conservation, concentration behind the front"
+seconds = 1.03
+
+    [[test.checks]]
+    name = "pad_rule"
+    bar = 0.01
+    value = -0.00020010369141154616
+    pass = true
+    [[test.checks]]
+    name = "balance"
+    bar = 1.0e-9
+    value = 2.458822830398692e-16
+    pass = true
+    [[test.checks]]
+    name = "behind_front"
+    bar = 0.005
+    value = 1.141309269314661e-13
+    pass = true
+    [[test.checks]]
+    name = "no_overshoot"
+    bar = 1.0e-6
+    value = 3.3506530883187224e-13
+    pass = true
+[[test]]
+kind = "exact"
+status = "pass"
+detail = "0.2 mm sand in water settles 274.5 ft per hour; the settling law and the stress factor on pack permeability are taken from the sources in research/proppant-models.md and are not checked here"
+reference = "hand arithmetic from the definitions"
+id = "proppant_formulas"
+title = "Proppant arithmetic: concentration units, propped width, pack permeability, settling limit"
+seconds = 0.0
+
+    [[test.checks]]
+    name = "ppa"
+    bar = 1.0e-5
+    value = 1.1265776702629182e-6
+    pass = true
+    [[test.checks]]
+    name = "width"
+    bar = 1.0e-5
+    value = 2.8469452040269516e-7
+    pass = true
+    [[test.checks]]
+    name = "permeability"
+    bar = 0.0001
+    value = -1.0646099715128088e-6
+    pass = true
+    [[test.checks]]
+    name = "stokes_limit"
+    bar = 0.01
+    value = -0.006082898915744317
+    pass = true
+    [[test.checks]]
+    name = "slower_than_stokes"
+    bar = 0.5
+    value = 0.0
+    pass = true
+[[test]]
+kind = "exact"
+status = "pass"
+detail = "closed 30 m slot, 10% suspension: bank ends 5.00 m high after 2040 s; flowing slot: all settled by 798 m (exact 796 m); growth run: 51% of the proppant is immobile when pumping stops at a settling speed of 2 cm/s, 22% at 2 mm/s, and 19% with no settling at all (packed near the tip by leak-off and bridging)"
+reference = "Kynch's solution for a uniform suspension in a closed slot; the steady settling line in a slot with uniform flow; conservation"
+id = "proppant_settling"
+title = "Proppant settling into a bank: closed slot against the exact solution, flowing slot, conservation in a growth run"
+seconds = 2.87
+
+    [[test.checks]]
+    name = "hindered_speed"
+    bar = 0.0001
+    value = -4.65374754622383e-5
+    pass = true
+    [[test.checks]]
+    name = "meeting_time"
+    bar = 0.001
+    value = 0.00012014848422792213
+    pass = true
+    [[test.checks]]
+    name = "bank_half_way"
+    bar = 1.0e-6
+    value = 1.3766765505351941e-14
+    pass = true
+    [[test.checks]]
+    name = "front_half_way"
+    bar = 1.0e-6
+    value = -1.3100631690576847e-14
+    pass = true
+    [[test.checks]]
+    name = "bank_final"
+    bar = 1.0e-6
+    value = -1.3655743202889425e-14
+    pass = true
+    [[test.checks]]
+    name = "finished_on_time"
+    bar = 0.002
+    value = 0.0
+    pass = true
+    [[test.checks]]
+    name = "line_plateau"
+    bar = 0.001
+    value = 7.482903185973555e-14
+    pass = true
+    [[test.checks]]
+    name = "line_end"
+    bar = 0.02
+    value = 0.0018749999999709832
+    pass = true
+    [[test.checks]]
+    name = "line_balance"
+    bar = 1.0e-6
+    value = 4.907185768843192e-14
+    pass = true
+    [[test.checks]]
+    name = "carry_over_height"
+    bar = 0.01
+    value = 0.000111111111106732
+    pass = true
+    [[test.checks]]
+    name = "carry_over_speed_published"
+    bar = 0.005
+    value = -0.00022738090141694034
+    pass = true
+    [[test.checks]]
+    name = "growth_balance"
+    bar = 1.0e-9
+    value = 0.0
+    pass = true
+    [[test.checks]]
+    name = "never_over_packed"
+    bar = 1.0e-9
+    value = 0.0
+    pass = true
+    [[test.checks]]
+    name = "faster_grains_bank_more"
+    bar = 0.5
+    value = 0.0
+    pass = true
+[[test]]
+cells = 3838
+status = "pass"
+id = "chain_settling_to_production"
+ministeps = 109
+reference = "its own conditions: direction of each effect, and the chain runs to production"
+seconds = 16.27
+kind = "self"
+detail = "water, 600 psi barriers: 100% of the proppant banked during pumping, 99% of it ends in the pay, propped half-length 300 ft, 44.1 md-ft at the well (even spread: 300 ft, 2.9 md-ft; with no carry-over of grains above the bank: 217 ft, 44.1 md-ft); 300 psi below: 96% in the pay; 30 cp fluid: 96% banked"
+title = "Proppant bank to production: a weak barrier below the pay loses proppant out of zone; a thicker fluid banks less"
+cuts = 0
+
+    [[test.checks]]
+    name = "weak_floor_loses_proppant"
+    bar = 0.5
+    value = 0.0
+    pass = true
+    [[test.checks]]
+    name = "thick_fluid_banks_less"
+    bar = 0.5
+    value = 0.0
+    pass = true
+    [[test.checks]]
+    name = "same_fracture_either_way"
+    bar = 1.0e-12
+    value = 0.0
+    pass = true
+    [[test.checks]]
+    name = "oil_positive"
+    bar = 0.5
+    value = 0.0
+    pass = true
+[[test]]
+cells = 1121
+status = "pass"
+id = "fracwell_conductivity_loss"
+ministeps = 187
+reference = "its own conditions: no loss reproduces the plain run; more loss gives less oil; after a hard drawdown the permanent loss costs later production, the reversible one does not"
+seconds = 27.64
+kind = "self"
+detail = "12 months at 1000 psi: 4375 stb with no loss, 3928 with 2e-4 per psi, 3145 with 5e-4 per psi. After two months at 500 psi, months 3 to 12 at 3000 psi give 775 stb if the loss is permanent and 974 if it recovers (1277 had the well never been drawn down hard)"
+title = "Fracture conductivity that falls as the well is drawn down, and stays down"
+cuts = 0
+
+    [[test.checks]]
+    name = "no_loss_same"
+    bar = 0.002
+    value = 3.431228491601601e-5
+    pass = true
+    [[test.checks]]
+    name = "more_loss_less_oil"
+    bar = 0.5
+    value = 0.0
+    pass = true
+    [[test.checks]]
+    name = "permanent_costs_later"
+    bar = 0.5
+    value = 0.0
+    pass = true
+    [[test.checks]]
+    name = "same_when_never_recovering"
+    bar = 0.002
+    value = 0.0
+    pass = true
+    [[test.checks]]
+    name = "no_loss_same_after_drawdown"
+    bar = 0.002
+    value = 0.00011164581700606746
+    pass = true
+    [[test.checks]]
+    name = "connection_size"
+    bar = 0.01
+    value = 0.004240772190497344
+    pass = true
+    [[test.checks]]
+    name = "cut_fraction"
+    bar = 0.05
+    value = 0.0
+    pass = true
+[[test]]
+kind = "self"
+cells = 200
+status = "pass"
+detail = "half-lengths [492, 487, 487, 487, 487, 492] ft, shares [0.168, 0.166, 0.166, 0.166, 0.166, 0.168]"
+reference = "regression test for a defect: the tip estimate returned infinity where pressure rises towards the tip"
+id = "multifrac_tip_position"
+title = "Six clusters with limited entry (a reported case): lengths stay finite and steady"
+seconds = 11.97
+
+    [[test.checks]]
+    name = "finite"
+    bar = 0.5
+    value = 0.0
+    pass = true
+    [[test.checks]]
+    name = "no_jumps"
+    bar = 3.0
+    value = 1.0
+    pass = true
+    [[test.checks]]
+    name = "mirror"
+    bar = 1.0e-6
+    value = 0.0
+    pass = true
+    [[test.checks]]
+    name = "balance"
+    bar = 1.0e-9
+    value = 4.8333347068628216e-15
+    pass = true
+[[test]]
+cells = 3838
+status = "pass"
+id = "chain_proppant_to_production"
+ministeps = 109
+reference = "its own conditions: propped length inside created length, more proppant gives more conductivity, the result is used unchanged by the well model"
+seconds = 4.71
+kind = "self"
+detail = "8 bpm per fracture, 60 min, 0.2 mm sand from 30% of the job: created 256 ft, propped 241 ft; conductivity at the well 1.3 md-ft at 0.5 lb/gal and 4.9 md-ft at 2 lb/gal; 6-month oil 1161 stb per stage"
+title = "Rock, pumping and proppant to production: propped length and conductivity predicted"
+cuts = 0
+
+    [[test.checks]]
+    name = "propped_inside_created"
+    bar = 0.5
+    value = 0.0
+    pass = true
+    [[test.checks]]
+    name = "more_proppant_more_conductivity"
+    bar = 0.5
+    value = 0.0
+    pass = true
+    [[test.checks]]
+    name = "length_used"
+    bar = 1.0e-6
+    value = 9.43689570931383e-13
+    pass = true
+    [[test.checks]]
+    name = "settling_reported"
+    bar = 0.5
+    value = 0.0
+    pass = true
+[[test]]
+cells = 3705
+status = "pass"
+id = "chain_design_to_production"
+ministeps = 109
+reference = "its own conditions: a bigger job gives a longer fracture and more oil; an over-long fracture is cut and reported"
+seconds = 8.45
+kind = "self"
+detail = "4 / 8 / 12 bpm per fracture for 60 min: created half-length 130 / 256 / 379 ft, 6-month oil 456 / 842 / 1211 stb (conductivity and the 60% conductive share are declared, not predicted)"
+title = "Rock and pumping to production in one call: three job sizes on one well"
+cuts = 0
+
+    [[test.checks]]
+    name = "longer_with_bigger_job"
+    bar = 0.5
+    value = 0.0
+    pass = true
+    [[test.checks]]
+    name = "more_oil_with_longer"
+    bar = 0.5
+    value = 0.0
+    pass = true
+    [[test.checks]]
+    name = "length_used"
+    bar = 1.0e-6
+    value = 6.316391853999903e-12
+    pass = true
+    [[test.checks]]
+    name = "cut_reported"
+    bar = 0.5
+    value = 0.0
+    pass = true
+[[test]]
+cells = 1235
+status = "pass"
+id = "surface_linear_tubing"
+ministeps = 187
+reference = "the same well run without the loop, with the tubing resistance folded into the connection"
+seconds = 21.15
+kind = "exact"
+detail = "20 loop iterations; bottom-hole pressure falls from 4475 to 1012 psi as rate declines from 174 to 0.6 stb/d; 12-month oil 713 stb; solver steps 187 against 187 without the loop"
+title = "Wellbore coupling: rate-proportional tubing drop (20 psi per stb/d) on one stage"
+cuts = 0
+
+    [[test.checks]]
+    name = "cum"
+    bar = 0.005
+    value = -7.33919434662278e-5
+    pass = true
+    [[test.checks]]
+    name = "curve"
+    bar = 0.01
+    value = 0.0001508207921787556
+    pass = true
+    [[test.checks]]
+    name = "mismatch_psi"
+    bar = 0.005
+    value = 0.004981958990115345
+    pass = true
+    [[test.checks]]
+    name = "converged"
+    bar = 0.5
+    value = 0.0
+    pass = true
+[[test]]
+cells = 1235
+status = "pass"
+id = "surface_implicit_tubing"
+ministeps = 187
+reference = "the same well with the tubing resistance folded into the connection"
+seconds = 6.13
+kind = "exact"
+detail = "one run of 4.6 s; peak rate 174 stb/d at 4475 psi bottom-hole; 12-month oil 713 stb"
+title = "Wellbore coupling inside the timestep: rate-proportional tubing drop, one run"
+cuts = 0
+
+    [[test.checks]]
+    name = "cum"
+    bar = 0.005
+    value = 0.0005048472084965283
+    pass = true
+    [[test.checks]]
+    name = "curve"
+    bar = 0.01
+    value = 0.0005048472084964
+    pass = true
+    [[test.checks]]
+    name = "mismatch_psi"
+    bar = 0.005
+    value = 1.8189894035458566e-13
+    pass = true
+[[test]]
+cells = 1235
+status = "pass"
+id = "surface_implicit_cap"
+ministeps = 187
+reference = "the engine's own rate target with a pressure limit"
+seconds = 2.45
+kind = "exact"
+detail = "one run of 1.1 s; peak oil rate 20.000 stb/d; 12-month oil 717 stb"
+title = "Facility limit inside the timestep: oil capped at 20 stb/d, one run"
+cuts = 0
+
+    [[test.checks]]
+    name = "cum"
+    bar = 0.005
+    value = 1.3100631690576847e-14
+    pass = true
+    [[test.checks]]
+    name = "curve"
+    bar = 0.01
+    value = 1.2912295910314576e-14
+    pass = true
+    [[test.checks]]
+    name = "mismatch_psi"
+    bar = 0.005
+    value = 7.105427357601002e-15
+    pass = true
+[[test]]
+cells = 1235
+status = "pass"
+id = "surface_rate_cap"
+ministeps = 187
+reference = "the engine's own rate target with a pressure limit (the control path SPE9 exercises)"
+seconds = 37.98
+kind = "exact"
+detail = "44 loop iterations; well held at the limit for 3 days, peak oil rate 20.00 stb/d, 12-month oil 717 stb"
+title = "Facility limit: oil rate capped at 20 stb/d on one stage, then decline at separator pressure"
+cuts = 0
+
+    [[test.checks]]
+    name = "cum"
+    bar = 0.005
+    value = 6.785773863060562e-5
+    pass = true
+    [[test.checks]]
+    name = "curve"
+    bar = 0.01
+    value = 6.785773863041936e-5
+    pass = true
+    [[test.checks]]
+    name = "mismatch_psi"
+    bar = 0.005
+    value = 0.0044061394484700145
+    pass = true
+    [[test.checks]]
+    name = "converged"
+    bar = 0.5
+    value = 0.0
+    pass = true
+[[test]]
+kind = "exact"
+cells = 3705
+status = "pass"
+reference = "the same model with every stage as its own well at that pressure (no surface condition involved)"
+id = "surface_multistage_live_oil"
+ministeps = 188
+title = "One well with three stages, live oil, at a fixed separator pressure: must equal the three stage-wells"
+seconds = 12.03
+cuts = 0
+
+    [[test.checks]]
+    name = "oil"
+    bar = 0.005
+    value = -1.0975056419226803e-9
+    pass = true
+    [[test.checks]]
+    name = "gas"
+    bar = 0.005
+    value = -8.049465538562117e-10
+    pass = true
+    [[test.checks]]
+    name = "curve"
+    bar = 0.01
+    value = 1.3261697593635645e-9
+    pass = true
+    [[test.checks]]
+    name = "cut_fraction"
+    bar = 0.05
+    value = 0.0
+    pass = true
+[[test]]
+cells = 3705
+status = "pass"
+id = "chain_growth_reservoir_surface"
+ministeps = 187
+reference = "its own conditions: surface condition closed at every step, limit honoured, few cut steps"
+seconds = 7.56
+kind = "self"
+detail = "grown half-lengths 130 / 256 / 379 ft; facility full for 49 days; bottom-hole pressure 3472 to 4996 psi; 12-month oil 2332 stb"
+title = "Fracture growth, live-oil reservoir, 9,050 ft of tubing and a 15 stb/d facility limit in one run"
+cuts = 0
+
+    [[test.checks]]
+    name = "mismatch_psi"
+    bar = 0.005
+    value = 9.094947017729283e-15
+    pass = true
+    [[test.checks]]
+    name = "over_limit"
+    bar = 0.001
+    value = 0.0
+    pass = true
+    [[test.checks]]
+    name = "cut_fraction"
+    bar = 0.05
+    value = 0.0
+    pass = true
+[[test]]
+cells = 3705
+status = "pass"
+id = "lift_noslip_well"
+ministeps = 187
+reference = "its own conditions: surface condition closed at every step, few cut steps, lower bottom-hole pressure and more oil with gas in the column"
+seconds = 9.81
+kind = "self"
+detail = "12-month oil 3768 stb with liquid-filled tubing (final bottom-hole pressure 3472 psi), 7051 stb without slip (114 psi): the true answer lies between"
+title = "Three-stage live-oil well behind 9,050 ft of tubing: liquid-only against gas-liquid without slip"
+cuts = 0
+
+    [[test.checks]]
+    name = "mismatch_psi"
+    bar = 0.005
+    value = 6.25676800666497e-5
+    pass = true
+    [[test.checks]]
+    name = "cut_fraction"
+    bar = 0.05
+    value = 0.0
+    pass = true
+    [[test.checks]]
+    name = "lower_bhp"
+    bar = 0.5
+    value = 0.0
+    pass = true
+    [[test.checks]]
+    name = "more_oil"
+    bar = 0.5
+    value = 0.0
+    pass = true
+[[test]]
+cells = 3705
+status = "pass"
+id = "lift_marching_agrees"
+ministeps = 376
+reference = "the in-timestep surface condition on the same well and tubing"
+seconds = 14.91
+kind = "cross"
+detail = "376 step solves for 187 steps in 8.9 s"
+title = "Step-by-step operating-point solver against the in-timestep solver (no-slip tubing)"
+cuts = 0
+
+    [[test.checks]]
+    name = "cum"
+    bar = 0.005
+    value = 2.4973691258756148e-5
+    pass = true
+    [[test.checks]]
+    name = "curve"
+    bar = 0.01
+    value = 8.242090228218529e-5
+    pass = true
+    [[test.checks]]
+    name = "mismatch_psi"
+    bar = 0.05
+    value = 0.004986360684897306
+    pass = true
+[[test]]
+cells = 3705
+status = "pass"
+id = "lift_slip_well"
+ministeps = 400
+reference = "its own conditions: operating point closed at every step, few cut steps, oil between the liquid-only and no-slip runs"
+seconds = 25.81
+kind = "self"
+detail = "12-month oil: 3768 stb liquid-filled tubing, 4284 stb with slip, 7051 stb without slip; bottom-hole pressure with slip from 922 to 3276 psi; 400 step solves in 16.4 s"
+title = "Three-stage live-oil well behind 9,050 ft of tubing with gas-liquid slip"
+cuts = 7
+
+    [[test.checks]]
+    name = "mismatch_psi"
+    bar = 0.05
+    value = 0.003537987281597452
+    pass = true
+    [[test.checks]]
+    name = "cut_fraction"
+    bar = 0.05
+    value = 0.0175
+    pass = true
+    [[test.checks]]
+    name = "between_bounds"
+    bar = 0.5
+    value = 0.0
+    pass = true
+[[test]]
+cells = 5662
+status = "pass"
+id = "pad_far_apart"
+ministeps = 499
+reference = "one lateral alone in the same model (the other absent)"
+seconds = 34.48
+kind = "exact"
+detail = "36-month oil per stage 6441 stb with the second lateral 2,000 ft away, 6441 stb alone"
+title = "Two laterals 2,000 ft apart in the same rock: each must equal a lateral on its own"
+cuts = 0
+
+    [[test.checks]]
+    name = "same_as_alone"
+    bar = 0.005
+    value = 6.485702527259107e-6
+    pass = true
+    [[test.checks]]
+    name = "mirror"
+    bar = 1.0e-6
+    value = 1.2582601627286749e-11
+    pass = true
+[[test]]
+cells = 5700
+status = "pass"
+id = "pad_interference"
+ministeps = 499
+reference = "its own conditions: mirror-image laterals equal, and each makes less the closer they are"
+seconds = 46.3
+kind = "self"
+detail = "36-month oil per lateral (two stages, 5 microdarcy rock): 12883 stb at 2,000 ft, 12135 stb at 800 ft (-5.8%), 10459 stb at 550 ft (-18.8%)"
+title = "Two laterals in the same rock at 2,000, 800 and 550 ft spacing (500 ft tip-to-tip fracture span each)"
+cuts = 0
+
+    [[test.checks]]
+    name = "mirror"
+    bar = 1.0e-6
+    value = 2.3144708372058176e-11
+    pass = true
+    [[test.checks]]
+    name = "less_when_closer"
+    bar = 0.5
+    value = 0.0
+    pass = true
+    [[test.checks]]
+    name = "cut_fraction"
+    bar = 0.05
+    value = 0.0
+    pass = true
+[[test]]
+cells = 2470
+status = "pass"
+id = "field_twins_shared_line"
+ministeps = 890
+reference = "one such well alone with twice the line resistance as its tubing (in-timestep form)"
+seconds = 16.19
+kind = "exact"
+detail = "890 step solves for 187 steps x 2 wells in 13.8 s; node pressure from 4475 down to 1012 psi; 12-month oil per well 713 stb"
+title = "Two identical wells on a shared flowline (10 psi per stb/d of total liquid)"
+cuts = 0
+
+    [[test.checks]]
+    name = "cum"
+    bar = 0.005
+    value = -0.0006070702438554232
+    pass = true
+    [[test.checks]]
+    name = "curve"
+    bar = 0.01
+    value = 0.0006070702438551028
+    pass = true
+    [[test.checks]]
+    name = "twins"
+    bar = 1.0e-6
+    value = 0.0
+    pass = true
+    [[test.checks]]
+    name = "mismatch_psi"
+    bar = 0.005
+    value = 0.004970450794847281
+    pass = true
+[[test]]
+cells = 2470
+status = "pass"
+id = "field_twins_facility_cap"
+ministeps = 560
+reference = "one such well alone under a 20 stb/d limit (in-timestep form, itself checked against the engine's rate target)"
+seconds = 3.22
+kind = "exact"
+detail = "560 step solves in 2.3 s; facility full for 2.6 days; peak total oil 40.005 stb/d"
+title = "Two identical wells under a 40 stb/d facility oil limit"
+cuts = 0
+
+    [[test.checks]]
+    name = "cum"
+    bar = 0.005
+    value = -1.5325539591382054e-5
+    pass = true
+    [[test.checks]]
+    name = "curve"
+    bar = 0.01
+    value = 8.812428535191328e-5
+    pass = true
+    [[test.checks]]
+    name = "twins"
+    bar = 1.0e-6
+    value = 0.0
+    pass = true
+    [[test.checks]]
+    name = "over_limit"
+    bar = 0.001
+    value = 0.0001178557052754492
+    pass = true
+[[test]]
+cells = 2470
+status = "pass"
+id = "field_unequal_wells"
+ministeps = 816
+reference = "its own conditions: limit honoured, node equation closed, both wells at the common node pressure"
+seconds = 3.33
+kind = "self"
+detail = "facility full for 4.0 days; 12-month oil: strong well 935 stb, weak well 493 stb (65% / 35%); 816 step solves in 3.3 s"
+title = "A strong and a weak well on one line under a 30 stb/d facility limit"
+cuts = 0
+
+    [[test.checks]]
+    name = "over_limit"
+    bar = 0.001
+    value = 9.974231923881582e-5
+    pass = true
+    [[test.checks]]
+    name = "mismatch_psi"
+    bar = 0.005
+    value = 0.004904808592799714
+    pass = true
+    [[test.checks]]
+    name = "node_common"
+    bar = 0.005
+    value = 0.0
+    pass = true
+[[test]]
+cells = 2470
+status = "pass"
+id = "field_pro_rata_twins"
+ministeps = 432
+reference = "one such well alone under a 20 stb/d limit (in-timestep form)"
+seconds = 3.58
+kind = "exact"
+detail = "facility full for 2.6 days; 432 step solves in 2.3 s"
+title = "Pro-rata allocation, two identical wells under 40 stb/d: each must match one well under 20 stb/d"
+cuts = 0
+
+    [[test.checks]]
+    name = "cum"
+    bar = 0.005
+    value = -1.2844168335135464e-5
+    pass = true
+    [[test.checks]]
+    name = "curve"
+    bar = 0.01
+    value = 1.2844168334876314e-5
+    pass = true
+    [[test.checks]]
+    name = "twins"
+    bar = 1.0e-6
+    value = 0.0
+    pass = true
+    [[test.checks]]
+    name = "over_limit"
+    bar = 0.001
+    value = 4.440892098500626e-16
+    pass = true
+[[test]]
+cells = 2470
+status = "pass"
+id = "field_priority_twins"
+ministeps = 432
+reference = "one such well alone under a 40 stb/d limit (no shared line, so the first well cannot feel the second)"
+seconds = 3.19
+kind = "exact"
+detail = "facility full for 2.6 days; 12-month oil: first well 717 stb, second well 716 stb"
+title = "Priority allocation, two identical wells under 40 stb/d: the first well must match one well alone under 40 stb/d"
+cuts = 0
+
+    [[test.checks]]
+    name = "first_well_cum"
+    bar = 0.005
+    value = -2.77982383445341e-6
+    pass = true
+    [[test.checks]]
+    name = "first_well_curve"
+    bar = 0.01
+    value = 1.6206944858899292e-5
+    pass = true
+    [[test.checks]]
+    name = "over_limit"
+    bar = 0.001
+    value = 4.440892098500626e-16
+    pass = true
+    [[test.checks]]
+    name = "full_means_full"
+    bar = 0.001
+    value = 4.440892098500626e-16
+    pass = true
+[[test]]
+cells = 2489
+status = "pass"
+id = "field_common_choke_flush"
+ministeps = 861
+reference = "its own conditions: the run completes, the limit is honoured, and the total matches the pro-rata run of the same field"
+seconds = 15.48
+kind = "self"
+detail = "861 step solves in 9.1 s; node pressure up to 1628 psi; 24-month oil by well 8138 / 4738 / 5629 stb (pro-rata: 8140 / 4739 / 5632)"
+title = "Common choke with the limit far below flush rate: three unequal live-oil wells, 66.7 stb/d"
+cuts = 0
+
+    [[test.checks]]
+    name = "over_limit"
+    bar = 0.001
+    value = 3.929439833671999e-5
+    pass = true
+    [[test.checks]]
+    name = "same_total_as_pro_rata"
+    bar = 0.005
+    value = -0.00028577315706757034
+    pass = true
+[[test]]
+cells = 2318
+status = "pass"
+id = "fracwell_maps"
+ministeps = 187
+reference = "its own conditions: uniform maps equal single values; equal pore volume, kh and fracture capacity give equal production; mirror image; direction of a rich streak"
+seconds = 12.22
+kind = "self"
+detail = "12-month oil: 7258 stb uniform; 7258 with half the net pay and doubled porosity, permeability and conductivity; 8786 with a rich streak at stage 1 (that stage 5398 against 3629); 2811 stb reading a generated geology"
+title = "Fractured well in rock that varies across the map: pore volume and kh decide, water is immobile, the model reads a geology grid"
+cuts = 0
+
+    [[test.checks]]
+    name = "uniform_maps_same"
+    bar = 1.0e-9
+    value = 0.0
+    pass = true
+    [[test.checks]]
+    name = "same_volume_and_kh"
+    bar = 1.0e-6
+    value = 0.0
+    pass = true
+    [[test.checks]]
+    name = "immobile_water"
+    bar = 1.0e-9
+    value = 0.0
+    pass = true
+    [[test.checks]]
+    name = "rich_streak_helps_its_stage"
+    bar = 0.5
+    value = 0.0
+    pass = true
+    [[test.checks]]
+    name = "mirror"
+    bar = 0.001
+    value = -2.4363433986596128e-5
+    pass = true
+    [[test.checks]]
+    name = "geology_run"
+    bar = 0.5
+    value = 0.0
+    pass = true
+    [[test.checks]]
+    name = "cut_fraction"
+    bar = 0.05
+    value = 0.0
+    pass = true
+[[test]]
+cells = 2850
+status = "pass"
+id = "fracwell_parent_child"
+ministeps = 188
+reference = "its own conditions: no late start equals the plain run; a far-away child leaves the parent alone; a near child loses to depletion, more so the later it comes; the parent loses to the child"
+seconds = 52.03
+kind = "self"
+detail = "live oil, laterals 500 ft apart. A new well's first 12 months: 7535 stb alone; 6484 stb as a child 6 months after its parent; 5797 stb 24 months after. The parent's 36 months: 12580 stb alone, 11999 with a child from month 6. Lowest pressure in the rock at the end of the late-child run: 1501 psi"
+title = "Parent and child laterals: a later well drills into depleted rock, and takes from its parent"
+cuts = 0
+
+    [[test.checks]]
+    name = "no_late_start_same"
+    bar = 1.0e-9
+    value = 0.0
+    pass = true
+    [[test.checks]]
+    name = "far_child_leaves_parent"
+    bar = 0.01
+    value = 6.015592241559453e-5
+    pass = true
+    [[test.checks]]
+    name = "far_child_like_new_well"
+    bar = 0.02
+    value = -0.00025909056701844957
+    pass = true
+    [[test.checks]]
+    name = "near_child_loses"
+    bar = 0.5
+    value = 0.0
+    pass = true
+    [[test.checks]]
+    name = "later_child_loses_more"
+    bar = 0.5
+    value = 0.0
+    pass = true
+    [[test.checks]]
+    name = "parent_loses_to_child"
+    bar = 0.5
+    value = 0.0
+    pass = true
+    [[test.checks]]
+    name = "child_quiet_before_start"
+    bar = 0.0
+    value = 0.0
+    pass = true
+    [[test.checks]]
+    name = "pressure_field_shape"
+    bar = 0.5
+    value = 0.0
+    pass = true
+    [[test.checks]]
+    name = "cut_fraction"
+    bar = 0.05
+    value = 0.0
+    pass = true
+[[test]]
+cells = 12369
+status = "pass"
+id = "fracwell_fast_modes"
+ministeps = 149
+reference = "the standard mesh with default time steps on the same well (mesh and time-step sensitivity, not an outside check)"
+seconds = 26.98
+kind = "self"
+detail = "60 months: standard 24.5 s; fast 2.0 s (oil -0.9% at 12 months, -0.6% at 60); screening 0.5 s (oil -5.1%, -1.5%)"
+title = "Fast and screening run modes for batches of runs: what they cost in accuracy"
+cuts = 0
+
+    [[test.checks]]
+    name = "fast_oil_12"
+    bar = 0.02
+    value = -0.009423782099881262
+    pass = true
+    [[test.checks]]
+    name = "fast_oil_60"
+    bar = 0.015
+    value = -0.005617096943918876
+    pass = true
+    [[test.checks]]
+    name = "fast_gas_60"
+    bar = 0.025
+    value = -0.010470494893538351
+    pass = true
+    [[test.checks]]
+    name = "screening_oil_12"
+    bar = 0.07
+    value = -0.051201237707611424
+    pass = true
+    [[test.checks]]
+    name = "screening_oil_60"
+    bar = 0.03
+    value = -0.015285639424039599
+    pass = true
+    [[test.checks]]
+    name = "screening_gas_60"
+    bar = 0.06
+    value = -0.0397437696861449
+    pass = true
+    [[test.checks]]
+    name = "fast_is_faster"
+    bar = 0.5
+    value = 0.0
+    pass = true
+    [[test.checks]]
+    name = "screening_is_fastest"
+    bar = 0.5
+    value = 0.0
+    pass = true
+[[test]]
+cells = 7049
+status = "pass"
+id = "fracwell_vs_stage_sim"
+ministeps = 343
+reference = "stage-sim weak__sym on its 3x-refined mesh (same engine, independently built model)"
+seconds = 3.1
+kind = "cross"
+detail = "24-month recovery 0.3637% of oil in place, reference 0.3648%; half-length on mesh 278.9 ft"
+title = "Fractured well builder: finite fracture (279 ft half-length, 6.6 md-ft) against our research model"
+cuts = 0
+
+    [[test.checks]]
+    name = "cum"
+    bar = 0.02
+    value = -0.0031226952990012213
+    pass = true
+    [[test.checks]]
+    name = "curve"
+    bar = 0.03
+    value = 0.008010727810667346
+    pass = true
+[[test]]
+cells = 11997
+status = "pass"
+id = "fracwell_blackoil_mesh"
+ministeps = 346
+reference = "the same model on the finer mesh preset"
+seconds = 9.58
+kind = "self"
+detail = "standard mesh, 24 months, three stages: 9959 stb oil, 32876 Mscf gas (coarse: 9960 stb, 32386 Mscf)"
+title = "Fractured well builder: coarse against standard mesh, live oil"
+cuts = 0
+
+    [[test.checks]]
+    name = "field_oil"
+    bar = 0.05
+    value = 4.860622528513048e-5
+    pass = true
+    [[test.checks]]
+    name = "field_gas"
+    bar = 0.05
+    value = -0.014911495166801902
+    pass = true
+[[test]]
+kind = "cross"
+cells = 300
+status = "pass"
+reference = "MRST solution shipped with the engine's tests"
+id = "cross_spe1_mrst"
+ministeps = 127
+title = "SPE1 against a second reference: MRST"
+seconds = 11.54
+cuts = 0
+
+    [[test.checks]]
+    name = "PRODUCER:bhp"
+    bar = 0.01
+    value = 0.00012004819963340354
+    pass = true
+    [[test.checks]]
+    name = "INJECTOR:bhp"
+    bar = 0.01
+    value = 0.002602933411073846
+    pass = true
+    [[test.checks]]
+    name = "PRODUCER:orat"
+    bar = 0.02
+    value = 0.0
+    pass = true
+    [[test.checks]]
+    name = "PRODUCER:grat"
+    bar = 0.02
+    value = 0.00010973827570532279
+    pass = true
+[[test]]
+kind = "cross"
+cells = 324
+status = "fail"
+reference = "MRST solution shipped with the engine's tests"
+id = "cross_spe3_mrst"
+ministeps = 31
+title = "SPE3: gas condensate with oil vaporised in the gas, against MRST"
+seconds = 16.0
+cuts = 0
+
+    [[test.checks]]
+    name = "PRODUCER:bhp"
+    bar = 0.01
+    value = 2.1287625830904106e-5
+    pass = true
+    [[test.checks]]
+    name = "PRODUCER:grat"
+    bar = 0.02
+    value = 0.03702183119715257
+    pass = false
+    [[test.checks]]
+    name = "PRODUCER:orat"
+    bar = 0.02
+    value = 0.0017535785265054265
+    pass = true
+[[test]]
+kind = "self"
+status = "pass"
+detail = "reservoir pressure fell to 1043 psia, below the lowest pressure of a fluid table (1215 psia); the engine holds gas properties constant below a table, so results past that point are not reliable. Extend the fluid tables."
+reference = "its own conditions: the note appears for SPE3, names the table's lowest pressure, and does not appear for SPE1"
+id = "fluid_table_warning"
+title = "A run that leaves the pressure range of its fluid tables is flagged (SPE3 is, SPE1 is not)"
+seconds = 1.36
+
+    [[test.checks]]
+    name = "flagged"
+    bar = 0.5
+    value = 0.0
+    pass = true
+    [[test.checks]]
+    name = "table_floor_psia"
+    bar = 0.1
+    value = 6.343725544866174e-11
+    pass = true
+    [[test.checks]]
+    name = "not_flagged"
+    bar = 0.5
+    value = 0.0
+    pass = true
+[[test]]
+cells = 9000
+status = "pass"
+id = "cross_spe9"
+ministeps = 96
+notes = []
+reference = "OPM Flow results shipped with the benchmark"
+seconds = 14.26
+kind = "cross"
+title = "SPE9: black oil, 9,000 cells, 26 wells with control switching"
+cuts = 0
+
+    [[test.checks]]
+    name = "field_oil"
+    bar = 0.03
+    value = 0.004030268475369318
+    pass = true
+    [[test.checks]]
+    name = "field_gas"
+    bar = 0.03
+    value = 0.007607079607040163
+    pass = true
+    [[test.checks]]
+    name = "field_water"
+    bar = 0.03
+    value = 0.029349633437350156
+    pass = true
+    [[test.checks]]
+    name = "INJE1:bhp"
+    bar = 0.01
+    value = 1.3507691931930327e-15
+    pass = true
+[[test]]
+cells = 18553
+status = "pass"
+id = "cross_egg"
+ministeps = 175
+notes = []
+reference = "OPM Flow results shipped with the benchmark"
+seconds = 24.53
+kind = "cross"
+detail = "reference file has no pressure data; rates only"
+title = "Egg: two-phase water flood, corner-point grid with inactive cells, 12 wells"
+cuts = 0
+
+    [[test.checks]]
+    name = "field_oil"
+    bar = 0.03
+    value = 0.0055178634943785256
+    pass = true
+    [[test.checks]]
+    name = "field_water"
+    bar = 0.03
+    value = 0.001525057427001507
+    pass = true
+[[test]]
+cells = 1000
+status = "pass"
+id = "cross_compositional"
+ministeps = 503
+notes = []
+reference = "ECLIPSE 300 results shipped with the benchmark"
+seconds = 24.5
+kind = "cross"
+title = "Compositional: 3-component miscible gas displacement, equation of state"
+cuts = 0
+
+    [[test.checks]]
+    name = "gas_sat@250"
+    bar = 0.02
+    value = 0.0031970193598809416
+    pass = true
+    [[test.checks]]
+    name = "mole_frac@250"
+    bar = 0.02
+    value = 0.003766621496292747
+    pass = true
+    [[test.checks]]
+    name = "gas_sat@500"
+    bar = 0.02
+    value = 0.0016496378301428779
+    pass = true
+    [[test.checks]]
+    name = "mole_frac@500"
+    bar = 0.02
+    value = 0.0012486836334313633
+    pass = true
+[[test]]
+cells = 100
+status = "pass"
+id = "cross_polymer"
+ministeps = 237
+notes = ["Parser: RUNSPEC/PIMTDIMS - Unsupported keyword. It will be ignored.", "Parser: RUNSPEC/OPTIONS - Unsupported keyword. It will be ignored.", "Parser: GRID/MESSAGES - Unsupported keyword. It will be ignored."]
+reference = "OPM-tests reference results shipped with the benchmark"
+seconds = 27.66
+kind = "cross"
+title = "Polymer flood in black oil (mobility control, adsorption)"
+cuts = 4
+
+    [[test.checks]]
+    name = "PROD01:oil"
+    bar = 0.02
+    value = 0.0160543255351183
+    pass = true
+    [[test.checks]]
+    name = "INJE01:bhp"
+    bar = 0.01
+    value = 0.00073797920890165
+    pass = true

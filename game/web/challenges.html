@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Challenges · Frac Challenge</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..800&display=swap" rel="stylesheet">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 16 16%22%3E%3Crect x=%225%22 y=%221%22 width=%226%22 height=%2214%22 fill=%22%23f0a53a%22/%3E%3C/svg%3E">
+<link rel="stylesheet" href="css/app.css">
+<link rel="stylesheet" href="css/game.css">
+<script type="importmap">
+{ "imports": {
+    "three": "./vendor/three/build/three.module.js",
+    "three/addons/": "./vendor/three/addons/"
+} }
+</script>
+</head>
+<body class="game">
+<canvas id="view" aria-label="3D cutaway of the lease at well depth"></canvas>
+
+<header class="topbar">
+  <a class="brand" href="./" aria-label="Frac Challenge, back to the title screen">Frac Challenge</a>
+  <a class="workshop-link" href="challenges.html">Challenges</a>
+  <span class="crumb" id="crumb"></span>
+  <span class="sim" id="sim" role="status"></span>
+  <a class="workshop-link" href="career.html">Career mode</a>
+  <a class="workshop-link" href="minigames.html">Minigames</a>
+  <a class="workshop-link" href="workshop.html">Equipment workshop</a>
+</header>
+
+<!-- level select -->
+<section class="screen levels" id="screen-levels" hidden>
+  <div class="levels-inner">
+    <h1>Seven leases, one well each</h1>
+    <p class="lede">Design the fractures, run the reservoir simulator, and earn stars on net present value. Each lease teaches one idea.</p>
+    <label class="player">Your name on the leaderboard <input id="player" maxlength="32" autocomplete="nickname"></label>
+    <ol class="level-list" id="level-list"></ol>
+  </div>
+</section>
+
+<!-- design: left panel over the 3D view -->
+<section class="panel design" id="screen-design" hidden>
+  <h1 id="lv-title"></h1>
+  <p id="lv-brief"></p>
+  <p class="lesson" id="lv-lesson"></p>
+  <dl class="facts" id="lv-facts"></dl>
+  <div id="controls"></div>
+  <div class="capex" id="capex"></div>
+  <button class="run" id="run" type="button">Run simulation</button>
+  <p class="run-note" id="run-note"></p>
+</section>
+
+<!-- running -->
+<div class="runbar" id="runbar" hidden role="status" aria-live="polite">
+  <span class="spinner" aria-hidden="true"></span>
+  <span id="run-text"></span>
+</div>
+
+<!-- results: right panel -->
+<section class="panel results" id="screen-results" hidden>
+  <div class="npv">
+    <span class="npv-label">Net present value</span>
+    <span class="npv-value" id="npv"></span>
+    <span class="stars" id="stars"></span>
+    <p class="thresholds" id="thresholds"></p>
+  </div>
+  <div class="money" id="money"></div>
+  <div id="chart-oil"></div>
+  <div id="chart-cash"></div>
+  <div id="chart-stages"></div>
+  <h2>Leaderboard</h2>
+  <ol class="board" id="board"></ol>
+  <div class="actions">
+    <button type="button" id="again">Change the design</button>
+    <button type="button" id="next" class="primary">Next lease</button>
+  </div>
+</section>
+
+<!-- pressure timeline under the 3D view, after a run -->
+<div class="timeline" id="timeline" hidden>
+  <button type="button" id="play" aria-label="Play pressure history">Play</button>
+  <input type="range" id="month" min="0" max="1" step="0.01" value="0" aria-label="Month">
+  <span id="month-label"></span>
+  <div class="legend" aria-label="Colour scale">
+    <span id="leg-hi"></span><span class="ramp" id="ramp"></span><span id="leg-lo"></span>
+  </div>
+</div>
+
+<footer class="disclaimer">
+  A game, not an engineering tool. Economics are illustrative, the oil is the SPE1 benchmark fluid, and the reservoir is a
+  2D one-layer model. Fracture size is your input: the simulator does not grow fractures.
+</footer>
+<script type="module" src="js/game/app.js"></script>
+</body>
+</html>

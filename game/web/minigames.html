@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Frac Challenge minigames</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..800&display=swap" rel="stylesheet">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 16 16%22%3E%3Crect x=%225%22 y=%221%22 width=%226%22 height=%2214%22 fill=%22%23f0a53a%22/%3E%3C/svg%3E">
+<link rel="stylesheet" href="css/app.css">
+<link rel="stylesheet" href="css/game.css">
+<link rel="stylesheet" href="css/career.css">
+<link rel="stylesheet" href="css/mg.css">
+</head>
+<body class="career mg">
+<header class="cbar">
+  <a class="brand" href="./">Frac Challenge</a>
+  <a class="cname" href="minigames.html">Minigames</a>
+  <span class="clock" id="mg-title"></span>
+  <span class="kpi" id="mg-turn-k" hidden><span>Turn</span><strong id="mg-turn"></strong></span>
+  <span class="kpi" id="mg-status-k" hidden><span>Status</span><strong id="mg-status"></strong></span>
+  <a class="workshop-link" href="career.html">Career</a>
+  <a class="workshop-link" href="geosteer.html">Geosteering</a>
+</header>
+
+<main id="hub" class="hub" hidden>
+  <h1>Minigames</h1>
+  <p class="lede">Short games on one job each. The ones marked "simulator" run the reservoir or fracture models for real; the others are honest,
+    lighter models and say so.</p>
+  <ol id="hub-list" class="hub-list"></ol>
+</main>
+
+<div id="game" class="mg-desk" hidden>
+  <ul class="notes" id="mg-notes" aria-label="What this model does and doesn't do"></ul>
+  <div class="mg-grid">
+    <section class="mg-view" id="mg-view" aria-live="polite"></section>
+    <aside class="mg-side">
+      <div class="panel-card" id="mg-result" hidden></div>
+      <div class="panel-card" id="mg-actions-card">
+        <h2>Your move</h2>
+        <div id="mg-actions"></div>
+        <p class="hint" id="mg-busy" role="status"></p>
+      </div>
+      <div class="panel-card">
+        <h2>Log</h2>
+        <ol class="mg-log" id="mg-log"></ol>
+      </div>
+    </aside>
+  </div>
+</div>
+
+<footer class="disclaimer">A game, not an engineering tool. Economics are illustrative; simulator-backed games use ressim on the SPE1 benchmark oil.</footer>
+<script type="module" src="js/mg/shell.js"></script>
+</body>
+</html>

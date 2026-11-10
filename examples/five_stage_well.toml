@@ -1,0 +1,26 @@
+# Five-stage fractured well with unequal fractures. Field units throughout.
+# Run:  .\ressim.ps1 fracwell examples\five_stage_well.toml
+# You set the fracture geometry per stage; nothing here predicts fracture growth.
+name = "five_stage"
+
+# reservoir
+thickness_ft = 100.0
+width_ft = 1300.0          # across the lateral; the well runs down the middle
+perm_md = 0.0005           # 500 nanodarcy
+porosity = 0.08
+pressure_psi = 5000.0
+
+# well
+bhp_psi = 1500.0
+
+# stages: one entry per stage, or a single number to use for all
+positions_ft = [100.0, 300.0, 500.0, 700.0, 900.0]
+half_length_ft = [150.0, 250.0, 350.0, 250.0, 150.0]
+conductivity_mdft = [20.0, 50.0, 100.0, 50.0, 20.0]
+edge_ft = 100.0
+
+# fluid: "blackoil_spe1" is an illustrative live oil (bubble point 4,015 psia) with gas and connate water
+fluid = "blackoil_spe1"
+
+months = 24
+mesh = "coarse"            # coarse | standard | fine

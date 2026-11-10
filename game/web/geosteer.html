@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Frac Challenge geosteering</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..800&display=swap" rel="stylesheet">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 16 16%22%3E%3Crect x=%225%22 y=%221%22 width=%226%22 height=%2214%22 fill=%22%23f0a53a%22/%3E%3C/svg%3E">
+<link rel="stylesheet" href="css/app.css">
+<link rel="stylesheet" href="css/game.css">
+<link rel="stylesheet" href="css/career.css">
+<link rel="stylesheet" href="css/steer.css">
+</head>
+<body class="career steer">
+<header class="cbar">
+  <a class="brand" href="./">Frac Challenge</a>
+  <span class="cname">Stay in Zone</span>
+  <span class="clock" id="status"></span>
+  <span class="kpi"><span>Rig days</span><strong id="days">0</strong></span>
+  <span class="kpi"><span>Decisions</span><strong id="dec">0</strong></span>
+  <span class="kpi"><span>Bit</span><strong id="bit"></strong></span>
+  <a class="workshop-link" href="minigames.html">Minigames</a>
+  <a class="workshop-link" id="back" href="./">Back</a>
+</header>
+
+<main id="start" class="landing" hidden>
+  <h1>Keep the lateral in the pay</h1>
+  <p class="lede">You steer a 4,620 ft horizontal well through a pay zone about 25 to 40 ft thick. You can't see the beds:
+    you see gamma ray from a sensor 50 ft behind the bit, and you match it against the typelog to guess where you are.
+    Steer up or down one 300 ft interval at a time. The true structure is revealed when you finish.</p>
+  <button type="button" class="board-go" id="new">Start a well</button>
+</main>
+
+<div id="desk" class="steer-desk" hidden>
+  <p class="note" id="note"></p>
+  <div class="steer-grid">
+    <section class="panel-card typelog-card" aria-labelledby="tl-h">
+      <h2 id="tl-h">Typelog</h2>
+      <p class="hint">Gamma against position in the pay, from the offset well. Shaded: the pay.</p>
+      <div id="typelog"></div>
+    </section>
+    <section class="xs-col">
+      <div class="panel-card">
+        <h2>Cross-section along the lateral</h2>
+        <p class="hint" id="xs-note">Your interpretation of the pay (amber), the drilled path, and the bit. Vertical scale exaggerated.</p>
+        <div id="xsec"></div>
+      </div>
+      <div class="panel-card">
+        <h2>Correlation</h2>
+        <p class="hint">Measured gamma at the sensor (blue) against the gamma your interpretation predicts (amber, dashed). Line them up by adjusting dip, faults and thickness.</p>
+        <div id="corr"></div>
+      </div>
+    </section>
+    <aside class="ctl-col">
+      <section class="panel-card prog-card" id="prog" hidden></section>
+      <div class="panel-card" id="interp-card">
+        <h2>Your interpretation</h2>
+        <p class="hint">Segments of constant dip along the lateral. Positive dip: beds get deeper ahead.</p>
+        <ol id="segs" class="segs"></ol>
+        <button type="button" class="small-btn" id="add-seg">Start a new segment at the sensor</button>
+      </div>
+      <div class="panel-card" id="steer-card">
+        <h2>Steer the next 300 ft</h2>
+        <div id="inc-ctl"></div>
+        <p class="hint" id="parallel"></p>
+        <label class="check"><input type="checkbox" id="look"> Look around (0.15 day, cuts gamma noise to 30%)</label>
+        <div class="steer-actions">
+          <button type="button" class="board-go" id="drill">Drill next interval</button>
+          <button type="button" class="small-btn" id="finish" disabled>Finish the well</button>
+        </div>
+        <details class="rules"><summary>Sidetrack or hand over</summary>
+          <div class="budget-row"><label for="st-md">Sidetrack back to md (ft)</label><input type="number" id="st-md" step="50"></div>
+          <button type="button" class="small-btn" id="sidetrack">Sidetrack</button>
+          <p class="hint">Costs a day plus re-drilling, and discards the logs beyond that point. Up to 1,500 ft behind the bit.</p>
+          <button type="button" class="small-btn" id="auto">Let the staff geosteerer finish the well</button>
+          <p class="hint">A rating-0.6 staff geosteerer drills the rest. Use it to learn; your score reflects it.</p>
+        </details>
+        <p class="hint" id="msg" role="status"></p>
+      </div>
+      <div class="panel-card" id="result" hidden></div>
+    </aside>
+  </div>
+</div>
+
+<footer class="disclaimer">A game, not an engineering tool. The structure is synthetic; production comes from ressim on the SPE1 benchmark oil.</footer>
+<script type="module" src="js/steer/app.js"></script>
+</body>
+</html>
