@@ -346,7 +346,7 @@ table.byyear tr.now td { background: rgba(240,165,58,0.07); }
 html:has(body.career), body.career { overflow: visible; height: auto; }
 
 @media (max-width: 1100px) {
-  .tc-layout, .plan-layout, .board-layout, .mail, .tc-fit { grid-template-columns: 1fr; }
+  .tc-layout, .plan-layout, .board-layout, .mail, .tc-fit { grid-template-columns: minmax(0, 1fr); }
   .plan-strip { position: static; }
 }
 
@@ -540,3 +540,35 @@ body.over #advY, body.over .home-side #year-card, body.over .home-side #conf-car
 .tc-prox { display: inline-flex; gap: 6px; align-items: center; } .tc-prox input { width: 52px; }
 small.pop { display: block; color: var(--bone-dim); font-size: 11px; }
 #diag-host .notes, .plan-scen .notes { font-size: 12.5px; color: var(--bone-dim); line-height: 1.45; max-width: 100ch; }
+/* reserves */
+.res-bar { display: flex; height: 22px; border-radius: 3px; overflow: hidden; gap: 2px; background: var(--slate-2); margin: 8px 0; }
+.res-legend { list-style: none; padding: 0; margin: 6px 0; display: grid; gap: 4px; max-width: 520px; font-size: 13px; }
+.res-legend li { display: grid; grid-template-columns: 12px 1fr auto; gap: 8px; align-items: center; }
+.res-legend i { width: 12px; height: 12px; border-radius: 2px; }
+.wfall { width: 100%; font-size: 10.5px; fill: var(--bone-dim); }
+.wfall .grid { stroke: rgba(255,255,255,0.05); } .wfall .link { stroke: rgba(231,226,214,0.35); stroke-dasharray: 3 2; }
+.wfall .tot { fill: #c98322; } .wfall .up { fill: #5fa85e; } .wfall .down { fill: #e8806f; } .wfall .val { fill: var(--bone); font-weight: 600; }
+#reserves-host .notes { font-size: 12.5px; color: var(--bone-dim); line-height: 1.45; }
+.wfall { max-width: 820px; display: block; }
+
+/* workovers, share */
+.wo-well { border-top: 1px solid var(--slate-2); padding: 10px 0; }
+.wo-head { display: flex; gap: 10px; align-items: baseline; margin-bottom: 6px; }
+.wo-opts { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 10px; }
+.wo-opt { background: var(--slate-2); border-radius: 6px; padding: 10px 12px; display: grid; gap: 6px; align-content: start; }
+.wo-opt ul { font-size: 13px; }
+.share-box { margin-top: 10px; display: grid; gap: 6px; }
+.share-row { display: flex; gap: 6px; } .share-row input { flex: 1; min-width: 0; font-family: ui-monospace, Consolas, monospace; font-size: 12px; background: var(--slate-2); color: var(--bone); border: 1px solid var(--slate-2); border-radius: 3px; padding: 4px 6px; }
+.fieldmap { max-width: 100%; height: auto; }
+@media (max-width: 760px) {
+  #tab-plan table, #tab-diag table, #tab-reserves table, #tab-board table, #tab-finance table { display: block; overflow-x: auto; max-width: 100%; }
+  #tab-plan svg, #tab-plan canvas, .plan-results > *, .plan-inputs > * { max-width: 100%; min-width: 0; }
+}
+.diag-row3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 12px; margin-bottom: 12px; }
+.scat { width: 100%; font-size: 9.5px; fill: var(--bone-dim); }
+.scat .grid { stroke: rgba(255,255,255,0.05); } .scat .sp { fill: #c98322; stroke: #16202a; stroke-width: 1; } .scat .fit { stroke: #3d8be0; stroke-width: 1.5; stroke-dasharray: 5 3; }
+.em-box { display: grid; gap: 6px; margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--slate-2); }
+.em-tog { align-items: flex-start; } .em-tog small { display: block; color: var(--bone-dim); font-size: 11.5px; }
+.lbl-sm { font-size: 12.5px; color: var(--bone-dim); } .fin-em { margin-top: 22px; }
+#money-card li.pending span { color: var(--gauge); }
+#money-card li.breach span { color: #e8806f; font-weight: 600; }

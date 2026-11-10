@@ -255,6 +255,36 @@ export function drawOverlay(ctx, base, d, style) {
     ctx.fillStyle = planned ? (style === 'aerial' ? 'rgba(18,22,26,0.8)' : '#f4f0e4') : col; ctx.fill();
     ctx.lineWidth = 1.4 * s; ctx.strokeStyle = style === 'aerial' ? '#141a20' : '#222'; if (planned) ctx.strokeStyle = col; ctx.stroke();
   }
+  // depletion: sections shaded by the oil already produced; planned pads in or next to a depleted section ringed
+  if (d.layer === 'depletion') {
+    const cum = d.secCum || {}, max = Math.max(1, ...Object.values(cum));
+    for (const sc of G.sections) {
+      const v = cum[sc.section] || 0; if (!v) continue;
+      ctx.fillStyle = `rgba(232,128,111,${0.12 + 0.5 * v / max})`;
+      ctx.fillRect(px(G.x0 + sc.col * G.SEC), pz(G.z0 + sc.row * G.SEC), G.SEC * k, G.SEC * k);
+    }
+    // the server's rule: a planned pad whose edge slot is within 1,500 ft of a producing well across the section line
+    const secOf = (w) => w.id.split('-')[0], producing = d.wells.filter(w => w.kind !== 'planned');
+    for (const p of d.pads.filter(p => p.state === 'planned' || p.state === 'construction')) {
+      const sc = G.sections.find(s => s.section === p.section); if (!sc) continue;
+      const own = d.wells.filter(w => secOf(w) === p.section); if (!own.length) continue;
+      const edges = [own.reduce((a, w) => (w.hx < a.hx ? w : a)), own.reduce((a, w) => (w.hx > a.hx ? w : a))];
+      let hit = null;
+      for (const e of edges) for (const w of producing) {
+        const ws = G.sections.find(s => s.section === secOf(w));
+        if (!ws || ws.row !== sc.row || Math.abs(ws.col - sc.col) !== 1) continue;   // across a section line, same row
+        const dft = Math.abs(w.hx - e.hx) * 100;
+        if (dft <= 1500 && (!hit || dft < hit.d)) hit = { d: dft, e, w };
+      }
+      if (!hit) continue;
+      ctx.strokeStyle = '#f0a53a'; ctx.lineWidth = 4 * s; ctx.setLineDash([12 * s, 8 * s]);
+      ctx.strokeRect(px(G.x0 + sc.col * G.SEC) + 6 * s, pz(G.z0 + sc.row * G.SEC) + 6 * s, G.SEC * k - 12 * s, G.SEC * k - 12 * s); ctx.setLineDash([]);
+      ctx.beginPath(); ctx.moveTo(px(hit.e.hx), pz((hit.e.hz + hit.e.tz) / 2)); ctx.lineTo(px(hit.w.hx), pz((hit.e.hz + hit.e.tz) / 2)); ctx.lineWidth = 3 * s; ctx.stroke();
+      ctx.font = `700 ${Math.round(9 * s)}px Archivo, sans-serif`; ctx.fillStyle = '#f0a53a'; ctx.textAlign = 'center';
+      const lab = `${Math.round(hit.d).toLocaleString('en-US')} ft`, lx = px((hit.e.hx + hit.w.hx) / 2), ly = pz((hit.e.hz + hit.e.tz) / 2) - 6 * s;
+      ctx.lineWidth = 3 * s; ctx.strokeStyle = 'rgba(16,20,24,0.9)'; ctx.strokeText(lab, lx, ly); ctx.fillText(lab, lx, ly);
+    }
+  }
   // production bubble map: a circle at the middle of each lateral, area proportional to cumulative oil
   if (d.layer === 'production') {
     const maxCum = Math.max(1, ...d.wells.map(w => w.cum || 0)), rMax = G.SEC * k * 0.17;

@@ -44,6 +44,7 @@
   </ul>
   <form id="new-form" class="new-form">
     <label>Career name <input id="new-name" maxlength="40" required></label>
+    <label>Share code <span class="hint">(optional: the same field as a friend)</span> <input id="new-share" maxlength="200" placeholder="RS1-…"></label>
     <button type="submit">Start a career</button>
   </form>
   <p id="gen" class="gen" hidden role="status"></p>
@@ -63,6 +64,7 @@
     <button type="button" data-tab="plan">Development plan</button>
     <span class="nav-group">Company</span>
     <button type="button" data-tab="board">Board</button>
+    <button type="button" data-tab="reserves">Reserves</button>
     <button type="button" data-tab="finance">Finances</button>
   </nav>
   <div class="main">
@@ -91,6 +93,11 @@
     <div id="fin-flows"></div>
     <div id="fin-years"></div>
     <div id="fin-afe"></div>
+    <div id="fin-em" class="fin-em"></div>
+  </section>
+
+  <section class="tab" id="tab-reserves" hidden>
+    <div id="reserves-host"></div>
   </section>
 
   <section class="tab" id="tab-diag" hidden>
@@ -112,6 +119,7 @@
             <span class="seg" role="group" aria-label="Map layer">
               <button type="button" data-layer="wells" aria-pressed="true">Wells</button>
               <button type="button" data-layer="production" aria-pressed="false">Production</button>
+              <button type="button" data-layer="depletion" aria-pressed="false">Depletion</button>
             </span>
             <span class="seg" role="group" aria-label="Map style">
               <button type="button" data-style="aerial" aria-pressed="true">Aerial</button>

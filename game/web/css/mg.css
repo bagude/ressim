@@ -58,3 +58,27 @@ a.cname { color: var(--bone); text-decoration: none; }
 .phases li.done { color: #a9dcac; }
 .phases li.now { background: var(--gauge); color: var(--bluestone); font-weight: 700; }
 .bids li { font-size: 13px; }
+.acq-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 10px; margin-bottom: 12px; }
+.acq-bid { display: flex; gap: 10px; align-items: center; } .acq-bid input[type=range] { flex: 1; } .acq-bid input[type=number] { width: 90px; }
+.acq-bid input[type=range] { width: auto; min-width: 140px; flex: 1 1 auto; }
+/* shared x-y plot (plots.js) */
+.xyplot { width: 100%; font-size: 10px; fill: var(--bone-dim, #a9b0b3); }
+.xyplot .grid { stroke: rgba(255,255,255,0.06); } .xyplot .axl { fill: var(--bone-dim, #a9b0b3); font-size: 10.5px; }
+.xyplot .mark { stroke: rgba(231,226,214,0.45); stroke-dasharray: 4 3; } .xyplot .markl { fill: var(--bone, #e7e2d6); font-size: 10px; }
+.xyplot .endl { fill: var(--bone, #e7e2d6); font-size: 10px; }
+.plotleg { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 12px; color: var(--bone-dim, #a9b0b3); margin: 2px 0 4px; }
+.plotleg span { display: inline-flex; align-items: center; gap: 6px; } .plotleg i { display: inline-block; width: 18px; }
+.gl-sum.neg { color: #e8806f; }
+
+/* the 3D scene above the 2D view */
+.mg-main { min-width: 0; display: grid; gap: 14px; align-content: start; }
+.mg-3d { position: relative; height: min(56vh, 520px); border-radius: 8px; overflow: hidden; background: #16202a; }
+.mg-3d canvas { display: block; width: 100%; height: 100%; outline: none; }
+.mg-3d canvas:focus-visible { outline: 2px solid var(--gauge); outline-offset: -2px; }
+.mg-3d-labels { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
+.mg-3d-labels .lbl { position: absolute; left: 0; top: 0; font-size: 11.5px; color: var(--bone); white-space: nowrap; padding: 2px 6px; border-radius: 3px;
+  background: rgba(22,32,42,0.78); max-width: 46%; white-space: normal; width: max-content; }
+.mg-3d-labels .lbl.warn { color: #f4c4bb; border-left: 3px solid #e8806f; }
+.mg-3d-labels .lbl.muted { color: var(--bone-dim); background: transparent; text-shadow: 0 1px 3px rgba(0,0,0,0.8); }
+.mg-3d-desc { position: absolute; left: 10px; right: 10px; bottom: 8px; margin: 0; font-size: 12px; color: var(--bone-dim); text-shadow: 0 1px 3px rgba(0,0,0,0.9); pointer-events: none; }
+@media (max-width: 700px) { .mg-3d { height: 46vh; } }

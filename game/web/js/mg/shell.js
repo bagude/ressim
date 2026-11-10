@@ -42,6 +42,59 @@ function recordStars(kind, stars) {
 
 // ------------------------------------------------------------------ session shell
 let S = null, renderer = null, busy = false;
+// ------------------------------------------------------------------ the 3D scene: one stage, made once, outside the 2D view
+// A game opts in with js/mg/scenes/<kind>.js exporting build(ctx, view, S) (once) and update(ctx, view, prev, S) (after each
+// move). The 2D view is rebuilt on every move; the stage is not, so the scene can animate from the old state to the new.
+let scene = null, sceneCtx = null, prevView = null;
+async function render3d() {
+  if (scene === false) return;
+  if (!scene) {
+    try { scene = await import(`./scenes/${S.kind}.js`); } catch { scene = false; return; }
+    const [{ Stage }, THREE] = await Promise.all([import('../engine/stage.js'), import('three')]);
+    const box = $('mg-3d'); box.hidden = false;
+    const stage = new Stage($('mg-canvas'), { quality: matchMedia('(max-width: 700px)').matches ? 'low' : 'high' });
+    const labels = [];
+    sceneCtx = {
+      THREE, stage, reduced: matchMedia('(prefers-reduced-motion: reduce)').matches,
+      describe: (t) => { $('mg-3d-desc').textContent = t; $('mg-canvas').setAttribute('aria-label', t); },
+      label: (text, pos, cls = '') => { const el = h('div', { class: `lbl ${cls}` }, text); $('mg-3d-labels').append(el); const L = { el, pos: pos.clone() }; labels.push(L); return L; },
+      clearLabels: () => { labels.length = 0; $('mg-3d-labels').replaceChildren(); },
+      // frame a THREE.Box3: back the camera off along dir until all eight corners fit the view at the canvas's aspect ratio
+      frame: (box, dir = [0.8, 0.45, 0.6], fly = false) => {
+        const c = box.getCenter(new THREE.Vector3()), D = new THREE.Vector3(...dir).normalize(), cam = stage.camera.clone();
+        const pts = []; for (const x of [box.min.x, box.max.x]) for (const y of [box.min.y, box.max.y]) for (const z of [box.min.z, box.max.z]) pts.push(new THREE.Vector3(x, y, z));
+        let d = box.getSize(new THREE.Vector3()).length() * 0.25 || 1;
+        for (let k = 0; k < 80; k++) { cam.position.copy(c).addScaledVector(D, d); cam.lookAt(c); cam.updateMatrixWorld();
+          if (pts.every(q => { const p = q.clone().project(cam); return p.z < 1 && Math.abs(p.x) < 0.94 && Math.abs(p.y) < 0.88; })) break; d *= 1.08; }
+        const pos = c.clone().addScaledVector(D, d);
+        stage.camera.far = Math.max(stage.camera.far, d * 10); stage.camera.near = Math.max(0.01, d / 2000); stage.camera.updateProjectionMatrix();
+        stage.controls.maxDistance = d * 4;
+        if (fly) stage.flyTo(pos.toArray(), c.toArray(), 1.2); else { stage.camera.position.copy(pos); stage.controls.target.copy(c); }
+      },
+    };
+    stage.onUpdate(() => {   // HTML labels follow their 3D anchors, kept inside the canvas, stacked where they would overlap
+      const cam = stage.camera, cv = stage.canvas, w = cv.clientWidth, hh = cv.clientHeight, placed = [];
+      const shown = [];
+      for (const L of labels) { const p = L.pos.clone().project(cam), vis = p.z < 1 && Math.abs(p.x) < 1.05 && Math.abs(p.y) < 1.05;
+        L.el.style.display = vis ? '' : 'none'; if (!vis) continue;
+        if (!L.w) { L.w = L.el.offsetWidth; L.h = L.el.offsetHeight; }
+        shown.push({ L, x: (p.x * 0.5 + 0.5) * w, y: (-p.y * 0.5 + 0.5) * hh }); }
+      shown.sort((a, b) => a.y - b.y);
+      for (const s of shown) {
+        let x = s.x + 6, y = s.y - 10; const { w: lw, h: lh } = s.L;
+        if (x + lw > w - 4) x = Math.max(4, s.x - 6 - lw);   // flip to the left of the anchor at the right edge
+        y = Math.min(Math.max(4, y), hh - lh - 30);           // clear of the description line at the bottom
+        for (const q of placed) if (x < q.x + q.w && q.x < x + lw && y < q.y + q.h + 2 && q.y < y + lh + 2) y = q.y + q.h + 2;
+        placed.push({ x, y, w: lw, h: lh }); s.L.el.style.transform = `translate(${x}px, ${y}px)`;
+      }
+    });
+    new IntersectionObserver(([e]) => (e.isIntersecting ? stage.start() : stage.stop())).observe(box);   // off screen costs nothing
+    window.__mg3d = sceneCtx;   // for QA in the console: __mg3d.stage.fps()
+    await scene.build(sceneCtx, S.view, S);
+    stage.start();
+  } else await scene.update?.(sceneCtx, S.view, prevView, S);
+  prevView = S.view;
+}
 const logKey = () => `mg.log.${S.kind}.${S.id}`;
 function log(lines, cls = '') {
   const all = (() => { try { return JSON.parse(sessionStorage.getItem(logKey())) || []; } catch { return []; } })();
@@ -119,7 +172,7 @@ function renderResult() {
   box.hidden = false;
   recordStars(S.kind, R.stars);
   box.className = 'panel-card result';
-  const bd = R.breakdown ? h('dl', { class: 'kv' }, ...Object.entries(R.breakdown).flatMap(([k, v]) => [h('dt', {}, pretty(k)), h('dd', {}, fmtVal(k, v))])) : null;
+  const bd = R.breakdown && !renderer?.ownBreakdown ? h('dl', { class: 'kv' }, ...Object.entries(R.breakdown).flatMap(([k, v]) => [h('dt', {}, pretty(k)), h('dd', {}, fmtVal(k, v))])) : null;
   const cid = S.link?.career;
   box.replaceChildren(...[h('h2', {}, R.headline || 'Result'),
     h('span', { class: 'stars-big', 'aria-label': `${R.stars} of 3 stars` }, '★'.repeat(R.stars || 0) + '☆'.repeat(3 - (R.stars || 0))),
@@ -137,6 +190,7 @@ export function pretty(k) {
 }
 export function fmtVal(k, v) {
   if (v == null) return '–';
+  if (typeof v === 'object' && !Array.isArray(v)) return Object.entries(v).map(([n, x]) => `${n} ${fmtVal(k, x)}`).join('; ');   // e.g. bids by rival
   if (typeof v === 'number' && /(^|_)ratio($|_)/.test(k)) return `${num(v, 2)}×`;   // relative score: 1 = matches the reference
   if (typeof v === 'number' && /(^|_)(share|efficiency)($|_)/.test(k)) return `${num(v * 100)}%`;
   if (typeof v === 'number') {
@@ -188,6 +242,7 @@ async function render() {
   if (renderer?.render) await renderer.render(S.view, $('mg-view'), S);
   else await genericView(S.view || {}, $('mg-view'));
   renderActions(); renderResult(); renderLog();
+  render3d().catch((e) => { console.error(e); $('mg-3d').hidden = true; scene = false; });   // 3D is an addition: a failure leaves the 2D game playable
   window.__ready = true;
 }
 async function newSession(kind) {

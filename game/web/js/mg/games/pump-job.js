@@ -7,6 +7,7 @@
 //   production {months, well {oil[], gas[], water[]}}; economics {npv10_usd, irr, payout_month, stage_cost_usd, completion_usd}
 import { h, num, usd, sv } from '../ui.js';
 import { multiChart, COLORS } from '../../career/charts2.js';
+import { plot } from '../plots.js';
 
 const ALARM = { height_runaway: 'Height runaway: the fracture grew through a barrier', screen_out: 'Screen-out: proppant packed off and the job stopped early' };
 
@@ -22,6 +23,21 @@ export function render(v, host, S0 = {}) {
   drawSketch(sk, v);
   if (v.clusters?.length) top.append(clusterCard(v));
   top.append(rockCard(v));
+  if (v.dfit?.G?.length) {   // the minifrac is a real DFIT: the G-function plots that pick closure
+    const D0 = v.dfit, gc = D0.closure_G;
+    // zoom to the closure event (about four times the closure G), and plot the derivatives' magnitudes as analysts do
+    const gMax = gc != null ? Math.max(gc * 4, 2) : Math.max(...D0.G), keep = D0.G.map((g, i) => g <= gMax ? i : -1).filter(i => i >= 0);
+    const pick = (a) => keep.map(i => a[i]);
+    const D = { ...D0, G: pick(D0.G), pressure_psi: pick(D0.pressure_psi), GdPdG: pick(D0.GdPdG).map(x => Math.abs(x)), dPdG: pick(D0.dPdG).map(x => Math.abs(x)) };
+    top.append(plot({ title: 'DFIT: pressure against G-function time', xl: 'G', yl: 'psi', W: 520, H: 250, series: [{ name: 'Pressure', x: D.G, y: D.pressure_psi, color: COLORS.dev }],
+      vx: gc != null ? [{ x: gc, label: 'closure' }] : [], note: `ISIP ${num(D.isip_psi)} psi. After shut-in the fracture leaks off and closes; G is the time function that makes normal leak-off a straight line.` }));
+    // the first few points after shut-in spike (no wellbore storage in the model): scale from the rest so the line reads
+    const yTop = gc != null ? 1.25 * Math.max(...D.G.map((g, i) => (g >= 0.2 * gc ? Math.max(D.GdPdG[i], D.dPdG[i]) : 0))) : null;
+    top.append(plot({ title: 'DFIT: the superposition derivative, −G·dP/dG', xl: 'G', yl: 'psi', W: 520, H: 250, ...(yTop > 0 ? { yMin: 0, yMax: yTop } : {}),
+      series: [{ name: '−G·dP/dG', x: D.G, y: D.GdPdG, color: COLORS.pdp }, { name: '−dP/dG', x: D.G, y: D.dPdG, color: '#b7678f', dash: true }],
+      vx: gc != null ? [{ x: gc, label: `closure, ${num(D.closure_minutes)} min` }] : [],
+      note: `Zoomed to G ≤ ${num(gMax, 1)}. While the fracture is open −G·dP/dG rises on a straight line through the origin; at closure it kinks (marked). Here it bends up, because the closed fracture is stiffer than the open one, which is the signature the compliance method reads. Simplified: closure is sharp (the walls touch all at once; real records are rarely this clear), there is no wellbore storage or friction in the first minutes, and no radial flow, so the test gives no kh. Leak-off and permeability read from the test also depend on the fracture height assumed: here the analysis is given the test fracture’s own height, which in the field is not known.` }));
+  }
   const S = v.series || {}, t = S.t_min || [];
   if (t.length) {
     const charts = [
@@ -86,9 +102,14 @@ function rockCard(v) {
   return h('div', { class: 'panel-card' }, h('h2', {}, 'The rock'), h('dl', { class: 'kv' },
     h('dt', {}, 'Pay thickness'), h('dd', {}, r.pay_ft != null ? `${num(r.pay_ft)} ft` : '–'),
     h('dt', {}, 'Barrier stress contrast (above pay closure)'), h('dd', {}, mf ? `${num(mf.barrier_psi)} psi (minifrac)` : r.barrier_psi_estimate != null ? `about ${num(r.barrier_psi_estimate)} psi${typeof r.barrier_uncertainty === 'string' ? ` ${r.barrier_uncertainty.replace(/\s+%/, '%')}` : Number.isFinite(r.barrier_uncertainty) ? ` ± ${num(r.barrier_uncertainty)}` : ''}` : '–'),
-    h('dt', {}, 'Closure stress'), h('dd', {}, r.closure_psi != null ? `${num(r.closure_psi)} psi` : '–'),
+    // the rock's closure is quoted above pore pressure; the DFIT's is absolute (they differ by the pore pressure)
+    h('dt', {}, mf?.pore_pressure_psi != null ? 'Closure stress above pore pressure' : 'Closure stress'), h('dd', {}, r.closure_psi != null ? `${num(r.closure_psi)} psi` : '–'),
     h('dt', {}, 'Leak-off'), h('dd', {}, mf ? `${num(mf.leakoff_ft_sqrtmin, 4)} ft/√min (minifrac)` : r.leakoff_ft_sqrtmin_estimate != null ? `about ${num(r.leakoff_ft_sqrtmin_estimate, 4)} ft/√min` : '–'),
-    h('dt', {}, "Young's modulus"), h('dd', {}, r.youngs_psi != null ? `${num(r.youngs_psi / 1e6, 2)} MM psi` : '–')),
+    h('dt', {}, "Young's modulus"), h('dd', {}, r.youngs_psi != null ? `${num(r.youngs_psi / 1e6, 2)} MM psi` : '–'),
+    ...(mf?.closure_psi != null ? [h('dt', {}, 'Closure stress, absolute (DFIT)'), h('dd', {}, `${num(mf.closure_psi)} psi`)] : []),
+    ...(mf?.pore_pressure_psi != null ? [h('dt', {}, 'Pore pressure (after closure)'), h('dd', {}, `${num(mf.pore_pressure_psi)} psi`)] : []),
+    ...(mf?.perm_md_from_leakoff != null ? [h('dt', {}, 'Permeability from leak-off'), h('dd', {}, `${(+mf.perm_md_from_leakoff).toPrecision(2)} md`)] : []),
+    ...(mf?.efficiency != null ? [h('dt', {}, 'Fluid efficiency (DFIT)'), h('dd', {}, `${num(mf.efficiency * 100)}%`)] : [])),
     h('p', { class: 'hint' }, mf ? 'Measured by your minifrac.' : 'Estimates. A minifrac measures the barrier stress and leak-off before you commit the main job.'));
 }
 

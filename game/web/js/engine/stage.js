@@ -127,8 +127,13 @@ export class Stage {
 
   onUpdate(fn) { this.updaters.add(fn); return () => this.updaters.delete(fn); }
 
+  // stop and start the render loop (a 3D panel scrolled off screen should cost nothing)
+  stop() { if (this.raf) cancelAnimationFrame(this.raf); this.raf = null; this.running = false; }
   start() {
+    if (this.running) return;
+    this.running = true; this.clock.getDelta();
     const loop = () => {
+      if (!this.running) return;
       const raw = this.clock.getDelta();
       const dt = Math.min(raw, 0.05);
       this.controls.update();

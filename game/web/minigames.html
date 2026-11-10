@@ -12,6 +12,12 @@
 <link rel="stylesheet" href="css/game.css">
 <link rel="stylesheet" href="css/career.css">
 <link rel="stylesheet" href="css/mg.css">
+<script type="importmap">
+{ "imports": {
+    "three": "./vendor/three/build/three.module.js",
+    "three/addons/": "./vendor/three/addons/"
+} }
+</script>
 </head>
 <body class="career mg">
 <header class="cbar">
@@ -34,7 +40,14 @@
 <div id="game" class="mg-desk" hidden>
   <ul class="notes" id="mg-notes" aria-label="What this model does and doesn't do"></ul>
   <div class="mg-grid">
-    <section class="mg-view" id="mg-view" aria-live="polite"></section>
+    <div class="mg-main">
+      <section class="mg-3d" id="mg-3d" hidden>
+        <canvas id="mg-canvas" role="img" aria-describedby="mg-3d-desc"></canvas>
+        <div class="mg-3d-labels" id="mg-3d-labels"></div>
+        <p class="mg-3d-desc" id="mg-3d-desc"></p>
+      </section>
+      <section class="mg-view" id="mg-view" aria-live="polite"></section>
+    </div>
     <aside class="mg-side">
       <div class="panel-card" id="mg-result" hidden></div>
       <div class="panel-card" id="mg-actions-card">

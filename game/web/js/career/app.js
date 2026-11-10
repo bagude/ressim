@@ -6,6 +6,7 @@ import { Field3D } from './field3d.js';
 import { openRock } from './rock.js';
 import { renderMaps, geology } from '../geo/maps.js';
 import { renderDiagnostics } from './diag.js';
+import { renderReserves } from './reserves.js';
 
 const q = new URLSearchParams(location.search);
 const $ = (id) => document.getElementById(id);
@@ -50,7 +51,8 @@ async function landing() {
     `${c.status}, month ${c.month}, confidence ${Math.round(c.confidence)}`))));
   $('new-form').addEventListener('submit', async (e) => {
     e.preventDefault();
-    const r = await call('/api/career/new', { name: $('new-name').value.trim() });
+    const share = $('new-share')?.value.trim();
+    const r = await call('/api/career/new', { name: $('new-name').value.trim(), ...(share ? { share } : {}) });
     if (!r.ok) { $('gen').hidden = false; $('gen').textContent = r.errors.join(' '); return; }
     location.search = `?id=${r.career.id}`;
   });
@@ -213,7 +215,7 @@ function setTab(t) {
   for (const b of document.querySelectorAll('.tabs button')) b.setAttribute('aria-selected', String(b.dataset.tab === t));
   for (const s of document.querySelectorAll('.tab')) s.hidden = s.id !== `tab-${t}`;
   const u = new URLSearchParams(location.search); u.set('tab', t); history.replaceState(null, '', '?' + u);
-  ({ home: renderHome, maps: () => renderMaps($('maps-host'), { C, analogs: ANALOGS }), diag: () => renderDiagnostics($('diag-host'), { C, monthName }), field: renderField, typecurve: renderTC, plan: renderPlan, board: renderBoard, finance: renderFinance, inbox: renderInbox })[t]();
+  ({ home: renderHome, maps: () => renderMaps($('maps-host'), { C, analogs: ANALOGS }), diag: () => renderDiagnostics($('diag-host'), { C, monthName, onCareer: (c) => { if (c) { C = c; renderBar(); } } }), reserves: () => renderReserves($('reserves-host'), { C, monthName }), field: renderField, typecurve: renderTC, plan: renderPlan, board: renderBoard, finance: renderFinance, inbox: renderInbox })[t]();
 }
 document.querySelectorAll('.tabs button').forEach(b => b.addEventListener('click', () => setTab(b.dataset.tab)));
 
@@ -221,7 +223,8 @@ document.querySelectorAll('.tabs button').forEach(b => b.addEventListener('click
 function bubbleLegend() {   // the size key for the production bubble layer
   const el = document.querySelector('.map-legend .bubbles');
   if (!el || !F3) return;
-  el.textContent = F3.layer === 'production' && F3.maxCum > 0 ? `Bubble area: cumulative oil per well, the largest ${bbl(F3.maxCum)}. Blue inherited, amber yours.` : '';
+  el.textContent = F3.layer === 'production' && F3.maxCum > 0 ? `Bubble area: cumulative oil per well, the largest ${bbl(F3.maxCum)}. Blue inherited, amber yours.`
+    : F3.layer === 'depletion' ? 'Red: oil already produced in the section (a proxy for the pressure the parents have drawn down). Amber dashed: a planned pad whose edge well comes within 1,500 ft of a producing well across the section line (the distance is marked), at risk of parent-child interference: smaller fractures, frac hits, lower rates. The verdict arrives in the inbox when the pad locks.' : '';
 }
 let focusSec = null;
 let F3 = null, activePlan = null, activePlanKey = null, mcMonth = null;
@@ -681,6 +684,15 @@ function renderPlan() {
   const eq = $('plan-equip'); eq.replaceChildren();
   eq.append(rangeCtl('Drilling rigs', '', C.limits.rigs, 1, draft.rigs, (v) => { draft.rigs = v; saveDraft(); schedulePlan(); }));
   eq.append(rangeCtl('Frac crews', '', C.limits.crews, 1, draft.crews, (v) => { draft.crews = v; saveDraft(); schedulePlan(); }));
+  if (C.emissions) {   // #14: emissions choices for new pads
+    draft.emissions ||= { electric_frac: false, vru: false };
+    const tog = (k, label, why) => { const c = h('input', { type: 'checkbox' }); c.checked = !!draft.emissions[k];
+      c.addEventListener('change', () => { draft.emissions = { ...draft.emissions, [k]: c.checked }; saveDraft(); schedulePlan(); });
+      return h('label', { class: 'check em-tog' }, c, ' ', h('span', {}, h('strong', {}, label), h('small', {}, why))); };
+    eq.append(h('div', { class: 'em-box' }, h('span', { class: 'lbl-sm' }, 'Emissions'),
+      tog('electric_frac', 'Electric frac fleet', `+${num((C.emissions.electric_frac_completion_factor ?? 1.04) * 100 - 100)}% completion cost; halves frac emissions`),
+      tog('vru', 'Vapour recovery units', `${usd(C.emissions.vru_usd_pad ?? 150000)} a pad; cuts fugitive emissions by three quarters`)));
+  }
   schedulePlan();
 }
 function rangeCtl(label, unit, [lo, hi], step, value, on) {
@@ -846,7 +858,7 @@ async function evaluatePlan(render = true) {
       h('td', {}, usd(y.approved_usd)), h('td', {}, y.board_limit_usd != null ? usd(y.board_limit_usd) : ''), h('td', {}, bbl(y.oil_forecast_bbl)), h('td', {}, usd(y.op_cash_forecast_usd))));
   }
   t.append(tb);
-  $('plan-years').replaceChildren(h('h2', {}, 'Budget by year'), h('p', { class: 'hint' }, 'Type a request beside planned capex. Empty means none: pads in that year wait.'), t);
+  $('plan-years').replaceChildren(h('h2', {}, 'Budget by year'), h('p', { class: 'hint' }, 'Type a request beside planned capex. Empty means none: pads in that year wait.'), h('div', { style: 'overflow-x:auto' }, t));
   if (!r.gantt.bars.some(b => b.end_month > C.month)) $('ch-gantt').replaceChildren(h('h2', {}, 'Schedule'), h('p', { class: 'hint' }, 'Nothing scheduled from this month on. Add pads to put rigs and frac crews to work.'));
   else gantt($('ch-gantt'), r.gantt, { now: C.month, fmtMonth: (m) => monthName(m), horizon: Math.min(C.career_months, Math.max(C.month + 18, Math.ceil(Math.max(...r.gantt.bars.map(b => b.end_month), 0) + 1))) });
   const F = r.forecast;
@@ -905,7 +917,8 @@ async function renderBoard() {
       h('div', { class: 'req big-req' }, '$', inp, ' MM', h('span', { class: 'hint' }, ` of a ${usd(limit)} limit; the plan spends ${usd(by?.planned_capex_usd)} this year`)),
       h('div', { class: 'bar' }, h('span', { style: `width:${Math.min(100, limit ? ask / limit * 100 : 0)}%;${ask > limit ? 'background:var(--api-red)' : ''}` })),
       h('p', {}, `Guidance you would commit to: ${bbl(by?.oil_forecast_bbl ?? 0)} this year. `,
-        h('span', { class: 'hint' }, `Land between ${bbl(by?.oil_forecast_bbl ?? 0)} and ${bbl((by?.oil_forecast_bbl ?? 0) * 1.1)}: below it misses guidance, more than 10% above counts as sandbagging.`))));
+        h('span', { class: 'hint' }, `Land between ${bbl(by?.oil_forecast_bbl ?? 0)} and ${bbl((by?.oil_forecast_bbl ?? 0) * 1.1)}: below it misses guidance, more than 10% above counts as sandbagging.`)),
+      h('p', { class: 'hint' }, 'Reserves: pads on this plan that start within five years are booked as proved undeveloped (PUD). The year-end review scores reserve replacement, so a plan with no future pads replaces nothing; PUDs not started within five years are removed.')));
     // the three conditions, each pass or fail with numbers and a way to fix it
     const cond = (ok, label, mine, need, fix) => h('li', { class: ok ? 'pass' : 'fail' }, h('span', { class: 'mark', 'aria-hidden': 'true' }, ok ? '✓' : '✗'),
       h('span', {}, h('strong', {}, label), h('span', { class: 'hint' }, ` ${ok ? 'Passes' : 'Fails'}: ${mine}; needs ${need}.`)),
@@ -1009,6 +1022,21 @@ function vsStaff(t) {
   return h('span', { class: v.delta > 0 ? 'pos' : v.delta < 0 ? 'neg' : '' }, v.delta === 0 ? 'Same as staff.' : `${f(v.delta)} ${word} than staff${v.metric ? ` (${v.metric})` : ''}.`);
 }
 
+// ------------------------------------------------------------------ share codes (#15): start a friend on the same field
+async function showShare(btn) {
+  btn.disabled = true;
+  const r = await call(`/api/career/share?id=${C.id}`);
+  const box = h('div', { class: 'share-box' });
+  if (!r.ok) box.append(h('p', { class: 'bad' }, (r.errors || ['No code.']).join(' ')));
+  else {
+    const inp = h('input', { type: 'text', readonly: '', value: r.code, 'aria-label': 'Share code', onclick: (e) => e.target.select() });
+    const copy = h('button', { type: 'button', class: 'small-btn do' }, 'Copy');
+    copy.addEventListener('click', async () => { try { await navigator.clipboard.writeText(r.code); copy.textContent = 'Copied'; } catch { inp.select(); copy.textContent = 'Press Ctrl+C'; } });
+    box.append(h('p', { class: 'hint' }, 'Anyone who starts a career with this code gets the same starting field, rock and oil price. None of your decisions carry over.'), h('div', { class: 'share-row' }, inp, copy), r.note ? h('p', { class: 'hint' }, r.note) : null);
+  }
+  btn.replaceWith(box);
+}
+
 // ------------------------------------------------------------------ the rival: staff on autopilot on the same field
 // The benchmark is a whole career already run; reveal it only up to the reviews you have reached, so it races you, not spoils.
 function rivalCard() {
@@ -1030,7 +1058,7 @@ function rivalCard() {
 function careerReport() {
   const s = C.score, R = C.board.reviews || [], sacked = C.status === 'sacked';
   const B = s?.benchmark?.value_usd != null ? s.benchmark : C.benchmark?.value_usd != null ? C.benchmark : null;   // staff on autopilot, same field and seed
-  const LABEL = { production_vs_guidance: 'production against guidance', sandbagging: 'sandbagging', capex_vs_budget: 'capex against budget', delivered_both: 'delivering both' };
+  const LABEL = { production_vs_guidance: 'production against guidance', sandbagging: 'sandbagging', capex_vs_budget: 'capex against budget', delivered_both: 'delivering both', reserve_replacement: 'reserve replacement', reserve_revisions: 'reserve revisions', reserves_audit: 'the reserves audit', emissions_intensity: 'emissions intensity' };
   const box = h('div', { class: `report end ${C.status}` });
   // headline
   if (s?.grade) box.append(h('div', { class: `grade g-${s.grade}`, title: 'A: 1.2× staff or better. B: at least staff. C: at least 0.8× staff. D: below.' }, s.grade));
@@ -1092,7 +1120,8 @@ function careerReport() {
   const usdDelta = played.reduce((a, t) => a + (t.played_vs_staff?.unit === 'usd' && t.played_vs_staff.delta != null ? t.played_vs_staff.delta : 0), 0);
   box.append(h('h3', {}, 'Jobs'), h('p', {}, `${played.length} played, ${cnt('delegated')} handed to staff, ${cnt('lapsed')} left to lapse.`,
     played.some(t => t.played_vs_staff?.unit === 'usd') ? ` The jobs you played came out ${usdDelta >= 0 ? usd(usdDelta) + ' better' : usd(-usdDelta) + ' worse'} than staff would have done.` : played.length ? '' : ' Playing a job yourself is how you beat the company standard.'));
-  box.append(h('div', { class: 'strip-actions' }, h('a', { class: 'small-btn do', href: 'career.html?new=1' }, 'Start a new career'), h('a', { class: 'small-btn', href: './' }, 'Main menu')));
+  const sb = h('button', { type: 'button', class: 'small-btn' }, 'Share this field'); sb.addEventListener('click', () => showShare(sb));
+  box.append(h('div', { class: 'strip-actions' }, h('a', { class: 'small-btn do', href: 'career.html?new=1' }, 'Start a new career'), sb, h('a', { class: 'small-btn', href: './' }, 'Main menu')));
   return box;
 }
 const signedBbl = (v) => v == null ? '–' : `${v >= 0 ? '+' : '−'}${bbl(Math.abs(v))}`;
@@ -1183,7 +1212,7 @@ async function renderHome() {
   else $('home-chart').replaceChildren();
   // board confidence, broken down by the last review's parts
   const conf = C.board.confidence, last = C.board.reviews[C.board.reviews.length - 1];
-  const LABEL = { production_vs_guidance: 'Production against guidance', sandbagging: 'Sandbagging', capex_vs_budget: 'Capex against budget', delivered_both: 'Delivered both' };
+  const LABEL = { production_vs_guidance: 'Production against guidance', sandbagging: 'Sandbagging', capex_vs_budget: 'Capex against budget', delivered_both: 'Delivered both', reserve_replacement: 'Reserve replacement', reserve_revisions: 'Reserve revisions', reserves_audit: 'Reserves audit', emissions_intensity: 'Emissions intensity' };
   $('conf-card').replaceChildren(...[h('h2', {}, 'Board confidence'), h('span', { class: 'big' }, String(Math.round(conf))),
     h('div', { class: 'bar' }, h('span', { style: `width:${conf}%` }), h('i', { style: 'left:20%', title: 'Below 20 you are sacked' })),
     h('p', { class: 'hint' }, (() => {
@@ -1205,13 +1234,39 @@ async function renderHome() {
       h('p', { class: 'hint' }, 'No budget approved yet this year. Take a plan to the board.'));
   const headroom = C.cash_usd + C.credit_line_usd;
   rivalCard();
+  const shareBtn = h('button', { type: 'button', class: 'small-btn' }, 'Share this field');
+  shareBtn.addEventListener('click', () => showShare(shareBtn));
   $('money-card').replaceChildren(h('h2', {}, 'Money'), h('ul', {}, h('li', {}, h('span', {}, 'Cash'), h('strong', {}, usd(C.cash_usd))),
     h('li', {}, h('span', {}, 'Cash plus credit line'), h('strong', {}, usd(headroom))), h('li', {}, h('span', {}, 'Capital limit'), h('strong', {}, usd(C.capital_limit_usd))),
-    h('li', {}, h('span', {}, 'Paid to shareholders'), h('strong', {}, usd(C.shareholder_returns_usd ?? 0)))));
+    h('li', {}, h('span', {}, 'Paid to shareholders'), h('strong', {}, usd(C.shareholder_returns_usd ?? 0))),
+    ...(() => { const P = C.costs_pending || [], t = P.reduce((a, x) => a + (x.usd || 0), 0);   // job costs that leave cash at the next month's step
+      return t > 0 ? [h('li', { class: 'pending' }, h('span', {}, `Committed, leaves cash next month (${P.map(x => x.label).join(', ')})`), h('strong', {}, `−${usd(t)}`)),
+        h('li', {}, h('span', {}, 'Cash after that'), h('strong', { class: C.cash_usd - t < -C.credit_line_usd ? 'neg' : '' }, usd(C.cash_usd - t))),
+        ...(C.cash_usd - t < -C.credit_line_usd ? [h('li', { class: 'breach' }, h('span', {}, `That is past your ${usd(C.credit_line_usd)} credit line: unless next month's oil covers the gap, the board lets you go.`))] : [])] : []; })()), shareBtn);
 }
 
 // ------------------------------------------------------------------ finances
+function renderEmissions() {   // #14: the emissions dashboard on Finances
+  const box = $('fin-em'); if (!box) return;
+  const E = C.emissions, H = C.history;
+  if (!E) { box.replaceChildren(); return; }
+  const R = (C.board.reviews || []).filter(r => r.emissions);
+  box.replaceChildren(h('h2', {}, 'Emissions'),
+    h('div', { class: 'tiles diag-tiles' },
+      h('div', {}, h('span', {}, 'This year so far'), h('strong', {}, `${num(E.co2e_t_ytd)} t CO₂e`), h('small', {}, `charged at $${num(E.carbon_usd_t)}/t in operating cash`)),
+      h('div', {}, h('span', {}, 'Board target'), h('strong', {}, `${num(E.target_kg_boe, 1)} kg/BOE`), h('small', {}, 'falls 8% a year; scored at each review')),
+      R.length ? h('div', {}, h('span', {}, `Year ${R[R.length - 1].year} intensity`), h('strong', { class: R[R.length - 1].emissions.intensity_kg_boe > R[R.length - 1].emissions.target_kg_boe ? 'neg' : 'pos' }, `${num(R[R.length - 1].emissions.intensity_kg_boe, 1)} kg/BOE`), h('small', {}, `target ${num(R[R.length - 1].emissions.target_kg_boe, 1)}`)) : null));
+  if (H.co2e_t?.some(v => v != null)) { const d = h('div'); box.append(d);
+    multiChart(d, { title: 'Emissions, tonnes CO₂e per month', note: 'Flaring, venting and fuel, from your flowback, facility and lift choices.', x: H.month, xLabel: 'month', fmtY: (v) => num(v), fmtTipX: monthName,
+      series: [{ name: 'CO₂e', y: H.co2e_t, color: COLORS.dev }] }); }
+  if (R.length > 0) box.append(h('div', { style: 'overflow-x:auto' }, h('table', { class: 'data' }, h('thead', {}, h('tr', {}, ...['Year', 'CO₂e', 'Intensity', 'Target', 'Confidence'].map(x => h('th', {}, x)))),
+    h('tbody', {}, ...R.map(r => h('tr', {}, h('td', {}, `Year ${r.year}`), h('td', {}, `${num(r.emissions.co2e_t)} t`), h('td', { class: r.emissions.intensity_kg_boe > r.emissions.target_kg_boe ? 'neg' : 'pos' }, `${num(r.emissions.intensity_kg_boe, 1)} kg/BOE`),
+      h('td', {}, `${num(r.emissions.target_kg_boe, 1)} kg/BOE`), h('td', {}, r.parts?.emissions_intensity != null ? `${r.parts.emissions_intensity >= 0 ? '+' : '−'}${num(Math.abs(r.parts.emissions_intensity), 1)}` : '–')))))));
+  box.append(h('p', { class: 'hint' }, 'Cut them with an electric frac fleet and vapour recovery units (Development plan, Equipment), and by flaring less in flowback.'));
+  if (E.notes?.length) box.append(h('ul', { class: 'notes' }, ...E.notes.map(n => h('li', {}, n))));
+}
 function renderFinance() {
+  renderEmissions();
   const H = C.history;
   if (!H.month.length) { $('fin-cash').replaceChildren(h('p', { class: 'hint' }, 'Finances appear after the first month.')); return; }
   multiChart($('fin-cash'), { title: 'Cash, end of month', note: 'Year-end shareholder payouts are taken after the December figure, so the top bar can read lower than the last point.', x: H.month, xLabel: 'month', fmtY: usd, fmtTipX: monthName, series: [{ name: 'Cash', y: H.cash_usd, color: COLORS.dev }] });

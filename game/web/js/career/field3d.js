@@ -73,6 +73,8 @@ export class Field3D {
     if (this.mapMat) { this.mapMat.opacity = on ? 0.4 : 1; this.mapMat.depthWrite = !on; this.mapMat.needsUpdate = true; }
     if (this.subsurface) this.subsurface.visible = on;
   }
+  // oil already produced per section: the depletion proxy for parent-child interference
+  secCum() { const out = {}; for (const w of this.mapWells || []) { if (!w.cum) continue; const sec = w.id.split('-')[0]; out[sec] = (out[sec] || 0) + w.cum; } return out; }
   setLayer(layer) { this.layer = layer; this._drawMap(this.focus); }   // 'wells' | 'production'
   setMapStyle(style) {
     this.mapStyle = style; try { localStorage.setItem('field.mapStyle', style); } catch { /* per-viewer convenience only */ }
@@ -89,7 +91,7 @@ export class Field3D {
     if (okey === this.mapKey) return;
     this.mapKey = okey;
     if (this.mapCanvas.width !== Wc || this.mapCanvas.height !== Hc) { this.mapCanvas.width = Wc; this.mapCanvas.height = Hc; }
-    drawOverlay(this.mapCanvas.getContext('2d'), this.base, { gw: this.gw, gd: this.gd, k: this.base.k, grid: this.grid, pads: this.pads, wells: this.mapWells, focus, layer: this.layer }, this.mapStyle);
+    drawOverlay(this.mapCanvas.getContext('2d'), this.base, { gw: this.gw, gd: this.gd, k: this.base.k, grid: this.grid, pads: this.pads, wells: this.mapWells, focus, layer: this.layer, secCum: this.secCum() }, this.mapStyle);
     this.maxCum = Math.max(0, ...this.mapWells.map(w => w.cum));
     this.mapTex.needsUpdate = true;
     this.elevNote = `Elevations ${Math.round(this.base.minH).toLocaleString('en-US')} to ${Math.round(this.base.maxH).toLocaleString('en-US')} ft`;
