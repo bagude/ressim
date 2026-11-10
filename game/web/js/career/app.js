@@ -146,7 +146,7 @@ function worstParts(rv, n = 3) {
 
 // ------------------------------------------------------------------ top bar
 function renderBar() {
-  $('cname').textContent = C.name;
+  $('cname').textContent = C.name; renderRail();
   $('clock').textContent = C.status === 'active' ? `Month ${C.month} of ${C.career_months}, year ${C.year}` : `${C.status}, month ${C.month}`;
   $('cash').textContent = usd(C.cash_usd);
   $('conf').value = C.board.confidence; $('conf-n').textContent = Math.round(C.board.confidence);
@@ -242,12 +242,44 @@ $('advY').addEventListener('click', () => advance(Math.max(1, 12 - (C.month % 12
 
 
 // ------------------------------------------------------------------ tabs
+// the inbox is a drawer over whatever step you are on, not a destination
+function openInbox(open = true) {
+  const d = $('tab-inbox'); d.hidden = !open; document.body.classList.toggle('drawer-open', open); $('inbox-btn').setAttribute('aria-expanded', String(open));
+  if (open) { renderInbox(); $('inbox-close').focus(); } else $('inbox-btn').focus();
+}
+$('inbox-btn')?.addEventListener('click', () => openInbox($('tab-inbox').hidden));
+$('inbox-close')?.addEventListener('click', () => openInbox(false));
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !$('tab-inbox').hidden) openInbox(false); });
+// the loop: which phase each tab belongs to, and where the year stands
+const PHASE_OF = { diag: 'lookback', reserves: 'lookback', finance: 'lookback', maps: 'prepare', typecurve: 'prepare', plan: 'prepare', board: 'board', home: 'year', field: 'year' };
+function phaseNow() {
+  if (C.status !== 'active') return 'lookback';
+  const W = C.workflow;
+  if (W?.current_step) return ({ lookback: 'lookback', map: 'prepare', forecast: 'prepare', plan: 'prepare', budget: 'board' })[W.current_step] || 'year';
+  if (!C.budget_needed) return 'year';
+  const st = meetingSteps(), cur = st.find(x => !x.done && !x.optional);
+  return !cur ? 'board' : cur.tab === 'diag' ? 'lookback' : cur.tab === 'board' ? 'board' : 'prepare';
+}
+function renderRail() {
+  const now = phaseNow(), order = ['lookback', 'prepare', 'board', 'year'], i = order.indexOf(now);
+  const W = C.workflow?.steps || [];
+  for (const g of document.querySelectorAll('.tabs .nav-group')) {
+    const ph = g.dataset.phase, j = order.indexOf(ph), att = W.some(x => (x.phase || ({ lookback: 'lookback', map: 'prepare', forecast: 'prepare', plan: 'prepare', budget: 'board' })[x.key] || 'year') === ph && x.status === 'attention');
+    g.classList.toggle('now', ph === now); g.classList.toggle('past', C.budget_needed ? j < i : ph !== 'year' && ph !== 'lookback');
+    g.querySelector('.ph-state').textContent = ph === now ? 'now' : att ? '!' : '';
+    g.title = ph === now ? 'Where the year stands' : '';
+  }
+}
 function setTab(t) {
+  if (t === 'inbox') { openInbox(true); return; }   // old links and buttons: open the drawer
   tab = t;
   for (const b of document.querySelectorAll('.tabs button')) b.setAttribute('aria-selected', String(b.dataset.tab === t));
-  for (const s of document.querySelectorAll('.tab')) s.hidden = s.id !== `tab-${t}`;
+  for (const s of document.querySelectorAll('.tab:not(.drawer)')) s.hidden = s.id !== `tab-${t}`;
+  renderRail();
+  const sel = document.querySelector(`.tabs button[data-tab="${t}"]`), nav = sel?.parentElement;   // phones: the row scrolls; keep the current step in view
+  if (sel && nav.scrollWidth > nav.clientWidth) nav.scrollLeft = Math.max(0, sel.offsetLeft - 24 - (sel.previousElementSibling?.classList.contains('nav-group') ? sel.previousElementSibling.offsetWidth : 0));
   const u = new URLSearchParams(location.search); u.set('tab', t); history.replaceState(null, '', '?' + u);
-  ({ home: renderHome, maps: () => renderMaps($('maps-host'), { C, analogs: ANALOGS }), diag: () => renderDiagnostics($('diag-host'), { C, monthName, onCareer: (c) => { if (c) { C = c; renderBar(); } } }), reserves: () => renderReserves($('reserves-host'), { C, monthName }), field: renderField, typecurve: renderTC, plan: renderPlan, board: renderBoard, finance: renderFinance, inbox: renderInbox })[t]();
+  ({ home: renderHome, inbox: () => openInbox(true), maps: () => renderMaps($('maps-host'), { C, analogs: ANALOGS }), diag: () => renderDiagnostics($('diag-host'), { C, monthName, onCareer: (c) => { if (c) { C = c; renderBar(); } } }), reserves: () => renderReserves($('reserves-host'), { C, monthName }), field: renderField, typecurve: renderTC, plan: renderPlan, board: renderBoard, finance: renderFinance, inbox: renderInbox })[t]();
 }
 document.querySelectorAll('.tabs button').forEach(b => b.addEventListener('click', () => setTab(b.dataset.tab)));
 
@@ -1485,7 +1517,7 @@ function renderInbox() {
 // ------------------------------------------------------------------ boot
 async function loadAnalogs() { const r = await call(`/api/career/analogs?id=${C.id}`); ANALOGS = r.ok ? r.analogs : []; }
 async function reload() { const r = await call(`/api/career?id=${C.id}`); if (r.ok) C = r.career; renderBar(); }
-function renderAll() { renderBar(); setTab(tab); }
+function renderAll() { renderBar(); setTab(tab === 'inbox' ? 'home' : tab); if (q.get('tab') === 'inbox') openInbox(true); }
 
 (async function boot() {
   const id = q.get('id');

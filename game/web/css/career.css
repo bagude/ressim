@@ -623,3 +623,23 @@ small.pop { display: block; color: var(--bone-dim); font-size: 11px; }
 .rev-compare > div { background: var(--slate); border-radius: 6px; padding: 10px 12px; display: grid; gap: 2px; }
 .rev-compare > div.pick { outline: 2px solid var(--gauge); }
 .rev-compare span { font-size: 12.5px; color: var(--bone-dim); } .rev-compare strong { font-size: 22px; font-variant-numeric: tabular-nums; } .rev-compare small { color: var(--bone-dim); font-size: 11.5px; }
+
+/* the year loop as navigation: phase headings with where the year stands; the inbox as a drawer */
+.tabs.loop .nav-group { display: flex; align-items: center; gap: 7px; font-size: 12px; font-weight: 600; color: var(--bone-dim); margin: 16px 0 4px 8px; }
+.tabs.loop .nav-group:first-child { margin-top: 2px; }
+.tabs.loop .nav-group b { display: inline-grid; place-items: center; width: 18px; height: 18px; border-radius: 50%; border: 1px solid var(--slate-2); font-size: 11px; }
+.tabs.loop .nav-group.now { color: var(--bone); } .tabs.loop .nav-group.now b { background: var(--gauge); border-color: var(--gauge); color: var(--bluestone, #16202a); }
+.tabs.loop .nav-group.past b { border-color: #5fa85e; color: #7fc47e; }
+.tabs.loop .ph-state { font-style: normal; font-size: 10.5px; color: var(--gauge); font-weight: 600; }
+.tabs.loop button { padding-left: 33px; }
+.inbox-btn { all: unset; cursor: pointer; font-size: 13.5px; font-weight: 600; color: var(--bone); padding: 6px 10px; border-radius: 6px; border: 1px solid var(--slate-2); }
+.inbox-btn:focus-visible { outline: 2px solid var(--bone); outline-offset: 2px; }
+.tab.drawer { position: fixed; top: var(--barH, 56px); right: 0; bottom: 0; width: min(760px, 100vw); z-index: 20; overflow-y: auto; background: #18232d;
+  border-left: 1px solid var(--slate-2); box-shadow: -12px 0 30px rgba(0,0,0,0.35); padding: 14px 18px; }
+.drawer-x { float: right; }
+body.drawer-open::after { content: ''; position: fixed; inset: var(--barH, 56px) 0 0 0; background: rgba(8,12,16,0.45); z-index: 15; }
+@media (max-width: 980px) {
+  .tabs.loop .nav-group { display: inline-flex; margin: 0 2px 0 10px; flex: none; }
+  .tabs.loop .nav-group:first-child { margin-left: 0; }
+  .tabs.loop button { padding-left: 10px; }
+}

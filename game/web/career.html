@@ -27,6 +27,7 @@
   <span class="kpi"><span>Cash</span><strong id="cash"></strong></span>
   <span class="kpi conf"><span>Board confidence</span><meter id="conf" min="0" max="100" low="20" high="50" optimum="100"></meter><strong id="conf-n"></strong></span>
   <span class="kpi pace" id="pace" hidden><span>This year</span><strong></strong></span>
+  <button type="button" class="inbox-btn" id="inbox-btn" aria-controls="tab-inbox" aria-expanded="false">Inbox <span id="inbox-n" class="count"></span></button>
   <span class="advance">
     <button type="button" id="advY">To year end</button>
     <button type="button" id="adv1" class="continue">Continue</button>
@@ -54,19 +55,20 @@
 </main>
 
 <div id="app" class="app" hidden>
-  <nav class="tabs" aria-label="Career sections">
-    <button type="button" data-tab="home">Home</button>
-    <button type="button" data-tab="inbox">Inbox <span id="inbox-n" class="count"></span></button>
-    <span class="nav-group">Asset</span>
-    <button type="button" data-tab="field">Field</button>
-    <button type="button" data-tab="maps">Maps</button>
-    <button type="button" data-tab="typecurve">Type curve</button>
-    <button type="button" data-tab="diag">Diagnostics</button>
-    <button type="button" data-tab="plan">Development plan</button>
-    <span class="nav-group">Company</span>
-    <button type="button" data-tab="board">Board</button>
-    <button type="button" data-tab="reserves">Reserves</button>
-    <button type="button" data-tab="finance">Finances</button>
+  <nav class="tabs loop" aria-label="The year, step by step">
+    <span class="nav-group" data-phase="lookback"><b>1</b> Look back <i class="ph-state"></i></span>
+    <button type="button" data-tab="diag" data-phase="lookback">Diagnostics</button>
+    <button type="button" data-tab="reserves" data-phase="lookback">Reserves</button>
+    <button type="button" data-tab="finance" data-phase="lookback">Finances</button>
+    <span class="nav-group" data-phase="prepare"><b>2</b> Prepare <i class="ph-state"></i></span>
+    <button type="button" data-tab="maps" data-phase="prepare">Map the rock</button>
+    <button type="button" data-tab="typecurve" data-phase="prepare">Type curve</button>
+    <button type="button" data-tab="plan" data-phase="prepare">Development plan</button>
+    <span class="nav-group" data-phase="board"><b>3</b> Board <i class="ph-state"></i></span>
+    <button type="button" data-tab="board" data-phase="board">Budget meeting</button>
+    <span class="nav-group" data-phase="year"><b>4</b> The year <i class="ph-state"></i></span>
+    <button type="button" data-tab="home" data-phase="year">This month</button>
+    <button type="button" data-tab="field" data-phase="year">Field</button>
   </nav>
   <div class="main">
 
@@ -247,7 +249,8 @@
     </div>
   </section>
 
-  <section class="tab" id="tab-inbox" hidden>
+  <section class="tab drawer" id="tab-inbox" hidden aria-label="Inbox">
+    <button type="button" class="drawer-x small-btn" id="inbox-close">Close</button>
     <div class="mail">
       <div class="mail-list">
         <div class="chips" id="mail-filters" role="toolbar" aria-label="Filter messages"></div>
