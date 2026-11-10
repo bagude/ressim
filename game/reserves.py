@@ -3,7 +3,7 @@ third-party audit the board reads.
 
 - Price: the trailing 12-month average of the realised oil price (the deck's gas price), flat, for the economic limit.
 - PDP (proved developed producing): each producing well's own Arps fit on its history (booking standard: b capped at
-  1.0, 10 %/yr terminal decline), from its current age to the economic limit (monthly net cash below zero) or the end
+  0.6, 10 %/yr terminal decline: conservative, as booking rules are), from its current age to the economic limit (monthly net cash below zero) or the end
   of the well's 20-year life.
 - PDNP (developed, not yet producing): drilled wells not online yet, on their pad's forecast curve.
 - PUD (proved undeveloped): pads in the current plan that have not started and are scheduled to start within 5 years
@@ -24,7 +24,7 @@ import typecurve
 LIFE_MONTHS = 240
 PUD_YEARS = 5
 AUDIT_TOLERANCE = 0.15
-BOOK_B_MAX = 1.0                 # reserves practice: hyperbolic exponent capped, terminal decline 10 %/yr
+BOOK_B_MAX = 0.6                 # reserves practice: b capped, 10 %/yr terminal decline (calibrated: books 0.65-1.04 x truth)
 BOOK_DMIN = 0.10
 
 

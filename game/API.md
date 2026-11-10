@@ -330,6 +330,39 @@ frac hits, lift, well luck). Pads locked before this change have no card.
   interval. `prognosis.target_ft` is the landing depth below the top of the gross pay. Live: staff steering 94 % in
   zone, a flat prognosis line 44 %.
 
+## Reserves (#3)
+- **Opening booking** at the first budget meeting; then a booking at each year-end review. `view.reserves = {latest,
+  history: [{year, month, price_usd_bbl, pdp_bbl, pdnp_bbl, pud_bbl, proved_bbl, reserve_replacement,
+  audit_developed_bbl, audit_over_pct, roll_forward, parts}], notes[]}`, or null before the first budget.
+- **Price:** the trailing 12-month average realised oil price, flat.
+- **Categories:**
+  - PDP: each producing well's own Arps fit, using the booking standard (b capped at 0.6, terminal decline
+    10 %/yr), to the economic limit or the end of the well's 20-year life. Calibrated: it books 0.65-1.04× truth.
+  - PDNP: drilled wells not yet online, on their pad's forecast.
+  - PUD: plan pads not started that are scheduled to start within 5 years, on their type curve at P90 with the
+    geology factor. A PUD carried more than 5 years from its first booking is removed.
+- **Roll-forward:** `{opening_bbl, production_bbl (−), extensions_bbl (new PUDs), pud_conversions_bbl (moved to
+  developed; net zero), pud_removals_bbl (−), revisions_bbl (the rest), closing_bbl}`. It balances: opening +
+  production + extensions + removals + revisions = closing.
+- **Audit:** an independent engineer's developed reserves (PDP + PDNP) from the wells' true remaining production.
+- **Year review:** `parts` gain `reserve_replacement` (±3, from (extensions + revisions) / production − 1),
+  `reserve_revisions` (negative revisions beyond 5 % of opening cost up to −8) and `reserves_audit` (booking more than
+  15 % above the auditor costs up to −15). `reviews[].reserves` carries the year's numbers.
+- Volumes are gross oil, the same basis as the rest of the career.
+
+## Workovers (#12) and share codes (#15)
+- `GET /api/career/workovers?id=` → `{ok, price_usd_bbl, wells: [{well, pad, history_months, current_rate_bbl_month,
+  options: [{kind: refrac|cleanout, label, cost_usd, uplift_mean, uplift_sd, fade_months, incremental_oil_bbl,
+  expected_npv10_usd, note}]}], notes[]}`.
+  - Wells: your producing wells. Options are open once a well is old enough (refrac 18 months, cleanout 6), once per
+    kind.
+  - The economics are your expectation: the well's own decline (booking standard), the mean uplift and today's price.
+- `POST /api/career/workover {id, well, kind}` charges the cost and applies the hidden uplift as a multiplier that fades
+  over `fade_months`. Returns `{ok, workover, career}`. Uplift is a game rule (in notes): refrac mean +60 % ± 30 %
+  over 36 months for $2.4 MM; cleanout +8 % ± 5 % over 18 months for $150k.
+- `GET /api/career/share?id=` → `{ok, code: "RS1-...", note}`. `POST /api/career/new {name, share}` starts a career on
+  the same starting field (seed). No decisions are carried.
+
 ## Mid-year revision
 `POST /api/career/plan {id, plan, revise_guidance?: bool, budget_usd?: number}` outside a budget meeting returns
 `revision` (a preview, beside `board_check`, which is null then). `POST /api/career/revise` with the same body applies

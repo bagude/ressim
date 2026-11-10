@@ -176,6 +176,11 @@ def lateral_profile(truth, worker, x, y, azimuth, length):
             "crossings": [{"md": round(c["md"], 1), "throw_ft": round(c["throw_ft"], 1)} for c in r["crossings"]]}
 
 
+def _mult(mm, m):
+    import workover
+    return workover.multiplier(mm, m)
+
+
 def inbox(state, kind, title, body, data=None):
     state["inbox"].append({"month": state["month"], "kind": kind, "title": title, "body": body, **({"data": data} if data else {})})
 
@@ -1108,10 +1113,13 @@ def year_review(state, y, truth=None, truth_sim=None):
     orig = state["board"].get("original", {}).get(str(y)) or {}
     r, c, parts = review_parts(oil, guide, capex, appr, orig.get("guidance_bbl"), orig.get("approved_usd"))
     res_rec = None
-    if truth is not None and (state.get("reserves") or {}).get("books"):   # year-end reserves: replacement, revisions, audit
+    if truth is not None:                       # year-end reserves: replacement, revisions, audit
         import reserves
-        rparts, res_rec = reserves.year_end(state, truth, truth_sim, y)
-        parts.update(rparts)
+        if (state.get("reserves") or {}).get("books"):
+            rparts, res_rec = reserves.year_end(state, truth, truth_sim, y)
+            parts.update(rparts)
+        else:                                   # a career from before reserves: book an opening now, score from next year
+            reserves.opening(state, truth, truth_sim)
     d = sum(parts.values())
     state["board"]["confidence"] = max(0.0, min(100.0, state["board"]["confidence"] + d))
     fcf = sum(h["op_cash_usd"][i] - h["capex_usd"][i] for i in idx)
@@ -1311,8 +1319,7 @@ def step_month(state, truth, truth_sim):
         if 0 <= k < len(c["oil"]):
             f = 1.0
             for mm in a.get("multipliers", []):                  # frac hits on inherited wells
-                if m >= mm["from_month"]:
-                    f *= mm["factor"]
+                f *= _mult(mm, m)
             oil += c["oil"][k] * f; gas += c["gas"][k] * f; water += c["water"][k] * f; producing += 1
     own_oil = own_gas = own_water = 0.0
     month_oil = {}
@@ -1323,8 +1330,7 @@ def step_month(state, truth, truth_sim):
         c = player_well_truth_curve(truth, w, truth_sim)
         mult = 1.0
         for mm in w.get("multipliers", []):
-            if m >= mm["from_month"]:
-                mult *= mm["factor"]
+            mult *= _mult(mm, m)
         if mult != 1.0:
             c = {ph: [x * mult for x in c[ph]] for ph in c}
         placed_from = w["online_day"] / MD

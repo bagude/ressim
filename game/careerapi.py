@@ -17,11 +17,15 @@ def handle(method, path, query, body, worker):
         if method == "POST" and path == "/api/career/new":
             if worker is None:
                 return 503, {"ok": False, "errors": ["server started with --no-sim"]}
-            cid = career.new(body.get("name") or "Operator", _truth_sim(worker))
+            seed = None
+            if body.get("share"):
+                import workover
+                seed = workover.seed_from_code(body["share"])
+            cid = career.new(body.get("name") or "Operator", _truth_sim(worker), seed=seed)
             st, _ = career.load(cid)
             return 200, {"ok": True, "career": career.view(st)}
         cid = query.get("id", [None])[0] if method == "GET" else body.get("id")
-        if worker is None and path not in ("/api/career", "/api/career/field", "/api/career/geology", "/api/career/geomodel"):
+        if worker is None and path not in ("/api/career", "/api/career/field", "/api/career/geology", "/api/career/geomodel", "/api/career/share"):
             return 503, {"ok": False, "errors": ["server started with --no-sim"]}
         ts = _truth_sim(worker)
         with career.lock_for(cid if isinstance(cid, str) else ""):
@@ -51,6 +55,17 @@ def handle(method, path, query, body, worker):
                     return 400, {"ok": False, "errors": [str(e)]}
                 career.save(st)
                 return 200, {"ok": True, "geomodel": {k: gm[k] for k in ("name", "sections", "created_month")}}
+            if method == "GET" and path == "/api/career/share":
+                import workover
+                return 200, {"ok": True, "code": workover.share_code(st), "note": "recreates this career's starting field; none of your decisions"}
+            if method == "GET" and path == "/api/career/workovers":
+                import workover
+                return 200, {"ok": True, **workover.candidates(st, truth, ts)}
+            if method == "POST" and path == "/api/career/workover":
+                import workover
+                r = workover.perform(st, body.get("well"), body.get("kind"))
+                career.save(st)
+                return 200, {"ok": True, "workover": r, "career": career.view(st)}
             if method == "GET" and path == "/api/career/diagnostics":
                 return 200, {"ok": True, "month": st["month"], **career.diagnostics(st, truth, ts)}
             if method == "GET" and path == "/api/career/analogs":
