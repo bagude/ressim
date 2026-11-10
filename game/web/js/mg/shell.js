@@ -67,13 +67,13 @@ async function render3d() {
         for (let k = 0; k < 80; k++) { cam.position.copy(c).addScaledVector(D, d); cam.lookAt(c); cam.updateMatrixWorld();
           if (pts.every(q => { const p = q.clone().project(cam); return p.z < 1 && Math.abs(p.x) < 0.94 && Math.abs(p.y) < 0.88; })) break; d *= 1.08; }
         const pos = c.clone().addScaledVector(D, d);
-        stage.camera.far = Math.max(stage.camera.far, d * 10); stage.camera.near = Math.max(0.01, d / 2000); stage.camera.updateProjectionMatrix();
+        stage.camera.far = Math.max(stage.camera.far, d * 10); stage.camera.near = Math.max(0.01, d / 300);   // depth precision: d/2000 z-fought layers 0.05 apart stage.camera.updateProjectionMatrix();
         stage.controls.maxDistance = d * 4;
         if (fly) stage.flyTo(pos.toArray(), c.toArray(), 1.2); else { stage.camera.position.copy(pos); stage.controls.target.copy(c); }
       },
     };
     stage.onUpdate(() => {   // HTML labels follow their 3D anchors, kept inside the canvas, stacked where they would overlap
-      const cam = stage.camera, cv = stage.canvas, w = cv.clientWidth, hh = cv.clientHeight, placed = [];
+      const cam = stage.camera, cv = stage.canvas, w = cv.clientWidth, hh = cv.clientHeight, placed = [], descH = getComputedStyle($('mg-3d-desc')).position === 'static' ? 8 : $('mg-3d-desc').offsetHeight + 12;
       const shown = [];
       for (const L of labels) { const p = L.pos.clone().project(cam), vis = p.z < 1 && Math.abs(p.x) < 1.05 && Math.abs(p.y) < 1.05;
         L.el.style.display = vis ? '' : 'none'; if (!vis) continue;
@@ -83,7 +83,7 @@ async function render3d() {
       for (const s of shown) {
         let x = s.x + 6, y = s.y - 10; const { w: lw, h: lh } = s.L;
         if (x + lw > w - 4) x = Math.max(4, s.x - 6 - lw);   // flip to the left of the anchor at the right edge
-        y = Math.min(Math.max(4, y), hh - lh - 30);           // clear of the description line at the bottom
+        y = Math.min(Math.max(4, y), hh - lh - descH);        // clear of the description at the bottom, however many lines it wraps to
         for (const q of placed) if (x < q.x + q.w && q.x < x + lw && y < q.y + q.h + 2 && q.y < y + lh + 2) y = q.y + q.h + 2;
         placed.push({ x, y, w: lw, h: lh }); s.L.el.style.transform = `translate(${x}px, ${y}px)`;
       }
