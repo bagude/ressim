@@ -170,7 +170,8 @@
               <input type="number" id="tc-prox-n" min="3" max="20" value="8" aria-label="Number of nearest wells">
               <button type="button" class="small-btn" id="tc-prox">Nearest wells</button></span>
             <label class="check"><input type="checkbox" id="tc-norm" checked> Per 1,000 ft of lateral</label>
-            <label class="tc-geo" id="tc-geo-row" hidden>Adjust for geology <select id="tc-geo"></select></label>
+            <span class="tc-geo" id="tc-geo-row" hidden><label>Adjust for geology <select id="tc-geo"></select></label></span>
+            <label class="check" title="Scales each analog to the company's standard completion before fitting, then back to your plan's design. In testing it over-forecast fields whose analogs were small old jobs: compare it with the plain curve."><input type="checkbox" id="tc-design"> Normalise for completion design (compare with the plain curve)</label>
           </div>
           <p class="hint" id="tc-geo-note"></p>
         </div>

@@ -7,6 +7,7 @@ import { openRock } from './rock.js';
 import { renderMaps, geology } from '../geo/maps.js';
 import { renderDiagnostics } from './diag.js';
 import { renderReserves } from './reserves.js';
+import { reviewPanel } from './review.js';
 
 const q = new URLSearchParams(location.search);
 const $ = (id) => document.getElementById(id);
@@ -96,11 +97,23 @@ function pace() {
   const r = P?.production_ratio ?? oil / fc;
   const level = r < 0.95 ? 'bad' : r < 0.995 ? 'warn' : r > 1.10 ? 'warn' : 'ok';
   const text = r < 0.995 ? `${Math.round((1 - r) * 100)}% behind guidance` : r > 1.10 ? `${Math.round((r - 1) * 100)}% above guidance: sandbagging` : 'On guidance';
-  const proj = P && P.confidence_change != null ? `on track for ${P.confidence_change >= 0 ? '+' : '−'}${Math.abs(Math.round(P.confidence_change))} confidence` : null;
-  const danger = P && P.confidence_after != null && P.confidence_after < (P.sack_below ?? 20) + 10;
+  const rp = !C.budget_needed && RP?.year === C.year ? RP : null;
+  const dEx = rp ? rp.confidence_after_expected - rp.confidence_now : P?.confidence_change, dPe = rp ? rp.confidence_after_pessimistic - rp.confidence_now : null;
+  const sg = (d) => `${d >= 0 ? '+' : '−'}${Math.abs(Math.round(d))}`;
+  const proj = dEx != null ? `review on track for ${sg(dEx)}${dPe != null && Math.round(dPe) !== Math.round(dEx) ? ` (${sg(dPe)} if pads slip)` : ''}` : null;
+  const after = rp ? rp.confidence_after_pessimistic : P?.confidence_after;
+  const danger = after != null && after < SACK() + 10;
   return { r, oil, fc, months: n, level: danger ? 'bad' : level, text, proj, P };
 }
 const SACK = () => C.sack_below ?? C.projection?.sack_below ?? 20;
+let RP = null, rpKey = '';
+async function refreshRP() {   // the board's formula on the year so far (or, during a meeting, the saved plan)
+  const k = `${C.id}|${C.month}|${C.budget_needed}|${(C.board.reviews || []).length}`;
+  if (k === rpKey) return RP; rpKey = k;
+  const r = await call(`/api/career/review_preview?id=${C.id}`).catch(() => null);
+  RP = r?.ok ? r.review_preview : null;
+  return RP;
+}
 
 // ------------------------------------------------------------------ the budget meeting, step by step
 function meetingSteps() {
@@ -137,6 +150,7 @@ function renderBar() {
   $('clock').textContent = C.status === 'active' ? `Month ${C.month} of ${C.career_months}, year ${C.year}` : `${C.status}, month ${C.month}`;
   $('cash').textContent = usd(C.cash_usd);
   $('conf').value = C.board.confidence; $('conf-n').textContent = Math.round(C.board.confidence);
+  if (C.status === 'active') refreshRP().then((rp) => { if (rp && $('pace').dataset.rp !== rpKey) { $('pace').dataset.rp = rpKey; renderBar(); } });
   const pc = C.status === 'active' ? pace() : null, pk = $('pace');
   pk.hidden = !pc;
   if (pc) {
@@ -481,6 +495,7 @@ function renderSaved() {
   $('tc-name').oninput = updateBtn; updateBtn();
 }
 // adjust the type curve for geology: the player's saved interpretation and an attribute (server fits the exponent)
+const tcDesign = () => ($('tc-design')?.checked ? { normalise_design: true } : {});
 const tcGeo = () => { const v = $('tc-geo')?.value; if (!v) return {}; const [geomodel, attribute] = v.split('|'); return { normalise_to: { geomodel, attribute } }; };
 async function fillTcGeo() {
   const sel = $('tc-geo'); if (!sel) return;
@@ -489,6 +504,14 @@ async function fillTcGeo() {
   sel.replaceChildren(h('option', { value: '' }, 'No (per 1,000 ft only)'), ...Object.entries(g?.geomodels || {}).flatMap(([name, m]) =>
     Object.keys(ATTR).filter(a => Object.values(m.sections || {}).some(v => v[a] != null)).map(a => h('option', { value: `${name}|${a}` }, `${name}: ${ATTR[a]}`))));
   sel.value = [...sel.options].some(o => o.value === keepV) ? keepV : '';
+  if ($('tc-design')) $('tc-design').checked = keep.get('tcDesign', false);
+  const models = Object.keys(g?.geomodels || {}), newest = models[models.length - 1];
+  if (newest && tcSel.size >= 3) {
+    const r = await call('/api/career/typecurve', { id: C.id, analogs: [...tcSel], normalise: $('tc-norm').checked, geo_fits: newest }).catch(() => null);
+    const F = r?.ok ? r.geo_fits || [] : [];
+    for (const o of sel.options) { const [m, a] = o.value.split('|'), f = m === newest && F.find(x => x.attribute === a); if (f) o.textContent = `${o.textContent} (r² ${num(f.r2, 2)})`; }
+    if (!keepV && F.length && F[0].r2 >= 0.15) { sel.value = `${newest}|${F[0].attribute}`; keep.set('tcGeo', sel.value); tcOverride = null; previewTC(); }   // preselect the best, if it explains anything
+  }
   const none = sel.options.length < 2;
   $('tc-geo-row').hidden = false; sel.disabled = none;
   let tip = $('tc-geo-none'); if (!tip) { tip = h('p', { class: 'hint', id: 'tc-geo-none' }, 'Save an interpretation on the ', h('button', { type: 'button', class: 'linkish', onclick: () => setTab('maps') }, 'Maps'), ' tab to scale each pad to the rock under it.'); $('tc-geo-row').append(tip); }
@@ -505,7 +528,7 @@ function previewTC() {
   clearTimeout(tcTimer);
   tcTimer = setTimeout(async () => {
     if (tcSel.size < 3) { $('tc-msg').textContent = 'Pick at least three wells.'; return; }
-    const r = await call('/api/career/typecurve', { id: C.id, analogs: [...tcSel], normalise: $('tc-norm').checked, ...tcGeo() });
+    const r = await call('/api/career/typecurve', { id: C.id, analogs: [...tcSel], normalise: $('tc-norm').checked, ...tcGeo(), ...tcDesign() });
     if (!r.ok) { $('tc-msg').textContent = r.errors.join(' '); return; }
     tcRes = r; $('tc-msg').textContent = proxMsg; proxMsg = ''; geoNote(r);
     if (!tcOverride) { tcOverride = { ...r.fits.p50 }; tcAdj = null; }
@@ -513,6 +536,7 @@ function previewTC() {
   }, 250);
 }
 $('tc-norm').addEventListener('change', () => { keep.set('tcNorm', $('tc-norm').checked); tcOverride = null; previewTC(); });
+$('tc-design')?.addEventListener('change', () => { keep.set('tcDesign', $('tc-design').checked); tcOverride = null; previewTC(); });
 $('tc-geo')?.addEventListener('change', () => { keep.set('tcGeo', $('tc-geo').value); tcOverride = null; previewTC(); });
 $('tc-all').addEventListener('click', () => setSel(ANALOGS.map(a => a.id)));
 $('tc-prox')?.addEventListener('click', async () => {
@@ -589,7 +613,7 @@ function renderTCSliders() {
 function previewAdjusted() {
   clearTimeout(adjTimer);
   adjTimer = setTimeout(async () => {
-    const r = await call('/api/career/typecurve', { id: C.id, analogs: [...tcSel], normalise: $('tc-norm').checked, ...tcGeo(), overrides: { p50: { ...tcOverride } } });
+    const r = await call('/api/career/typecurve', { id: C.id, analogs: [...tcSel], normalise: $('tc-norm').checked, ...tcGeo(), ...tcDesign(), overrides: { p50: { ...tcOverride } } });
     tcAdj = r.ok ? r.adjusted : null;
     if (!r.ok) $('tc-msg').textContent = r.errors.join(' ');
     drawTC();
@@ -599,7 +623,7 @@ $('tc-save').addEventListener('submit', async (e) => {
   e.preventDefault();
   let name = $('tc-name').value.trim();
   if (!name) { let n = Object.keys(C.typecurves).length + 1; while (C.typecurves[`Type curve ${n}`]) n++; name = `Type curve ${n}`; $('tc-name').value = name; }
-  const body = { id: C.id, analogs: [...tcSel], normalise: $('tc-norm').checked, ...tcGeo(), save: name };
+  const body = { id: C.id, analogs: [...tcSel], normalise: $('tc-norm').checked, ...tcGeo(), ...tcDesign(), save: name };
   const f = tcRes.fits.p50;
   if (['qi', 'di', 'b', 'dmin'].some(k => Math.abs(tcOverride[k] - f[k]) > 1e-9)) body.overrides = { p50: { ...tcOverride } };
   const r = await call('/api/career/typecurve', body);
@@ -794,17 +818,17 @@ function scenBars(cs, base) {   // the change in NPV10 against the plan, one bar
 function schedulePlan() { clearTimeout(planTimer); planTimer = setTimeout(() => evaluatePlan(true), 300); }
 // mid-year revision (outside a budget meeting): reset guidance to the plan's forecast and/or change this year's budget.
 // The server prices it in board confidence; plan changes inside the approved budget are free.
-let rev = { revise_guidance: false, budget_usd: null, month: null };
+let rev = { revise_guidance: false, budget_usd: null, month: null, basis: 'pace' };
 function revBody() {
   if (C.budget_needed) return {};
-  if (rev.month !== C.month) rev = { revise_guidance: false, budget_usd: null, month: C.month };
-  return { revise_guidance: rev.revise_guidance, ...(rev.budget_usd != null ? { budget_usd: rev.budget_usd } : {}) };
+  if (rev.month !== C.month) rev = { revise_guidance: false, budget_usd: null, month: C.month, basis: 'pace' };
+  return { revise_guidance: rev.revise_guidance, guidance_basis: rev.basis || 'pace', ...(rev.budget_usd != null ? { budget_usd: rev.budget_usd } : {}) };
 }
 async function applyRevision(btn) {
   btn.disabled = true; btn.textContent = 'Taking it to the board…';
   const r = await call('/api/career/revise', { id: C.id, plan: draft, ...revBody() });
   if (!r.ok) { btn.disabled = false; btn.textContent = 'Try again'; $('rev-msg').textContent = (r.errors || ['The board did not accept the revision.']).join(' '); return; }
-  C = r.career; rev = { revise_guidance: false, budget_usd: null, month: C.month };
+  C = r.career; rev = { revise_guidance: false, budget_usd: null, month: C.month, basis: 'pace' };
   draft = structuredClone(C.plan); draft.budget_request ||= {}; saveDraft(); activePlanKey = null; planRes = null;
   const v = r.revision, cc = v?.confidence_change ?? 0;
   revDone = `Revised. ${cc ? `Board confidence ${cc > 0 ? '+' : '−'}${num(Math.abs(cc), 1)}.` : 'No confidence cost.'}${v?.revise_guidance ? ` Guidance is now ${bbl(v.new_guidance_bbl)}.` : ''}`;
@@ -825,9 +849,14 @@ function revisionPanel(v) {
     h('p', { class: 'hint' }, 'Change unstarted pads, the design, rigs and crews inside the approved budget for free. Telling the board early that you will miss costs less than missing at year end; asking for more money costs confidence.'),
     h('div', { class: 'rev-grid' },
       h('span', {}, 'Guidance'), tw(v.original_guidance_bbl, v.guidance_bbl, bbl),
-      h('label', { class: 'check' }, guid, ` Reset to this plan's forecast${rev.revise_guidance ? `: ${bbl(v.new_guidance_bbl)}` : ''}${v.guidance_revised_this_quarter ? ' (already revised this quarter)' : ''}`),
+      h('span', { class: 'rev-basis' }, h('label', { class: 'check' }, guid, ` Reset guidance${rev.revise_guidance ? `: ${bbl(v.new_guidance_bbl)}` : ''}${v.guidance_revised_this_quarter ? ' (already revised this quarter)' : ''}`),
+        ...[['pace', 'to the current pace'], ['plan', 'to this plan’s forecast']].map(([k, l]) => { const r = h('input', { type: 'radio', name: 'rev-basis', value: k }); r.checked = (rev.basis || 'pace') === k; r.disabled = !rev.revise_guidance;
+          r.addEventListener('change', () => { rev.basis = k; schedulePlan(); }); return h('label', { class: 'check' }, r, ` ${l}`); })),
       h('span', {}, 'Budget'), tw(v.original_approved_usd, v.approved_usd, usd),
       h('span', { class: 'req' }, '$', bud, ' MM', h('small', {}, ` board limit ${usd(v.board_limit_usd)}; this plan spends ${usd(v.planned_capex_year_usd)} this year`))),
+    v.confidence_if_unrevised != null ? h('div', { class: 'rev-compare' },
+      h('div', {}, h('span', {}, 'Do nothing'), h('strong', {}, String(Math.round(v.confidence_if_unrevised))), h('small', {}, 'confidence after the review, at today’s pace')),
+      h('div', { class: changed ? 'pick' : '' }, h('span', {}, 'With this revision'), h('strong', {}, String(Math.round(v.confidence_if_revised ?? v.confidence_if_unrevised))), h('small', {}, 'the revision’s cost now, plus the review at today’s pace'))) : null,
     h('div', { class: 'rev-price' },
       h('span', { class: `rev-cost ${cc < 0 ? 'neg' : 'pos'}` }, cc < 0 ? `−${num(-cc, 1)} confidence` : 'No confidence cost'),
       ...(cc >= 0 ? [] : [h('small', {}, [v.guidance_confidence ? `guidance ${num(v.guidance_confidence, 1)}` : null, v.budget_confidence ? `budget ${num(v.budget_confidence, 1)}` : null].filter(Boolean).join(', '))]),
@@ -892,12 +921,14 @@ async function evaluatePlan(render = true) {
       { name: 'Producing wells', y: F.oil_pdp, color: COLORS.pdp, stack: 'oil' },
       { name: 'Development', y: F.oil_dev, color: COLORS.dev, stack: 'oil' },
     ], now: C.month });
-  const pt = h('table', { class: 'data' }, h('thead', {}, h('tr', {}, ...['Pad', 'Wells', 'Spacing ft', 'Type curve', 'Online', 'Capex', 'NPV10', 'PV10/I', 'IRR'].map(x => h('th', {}, x)))));
+  const pt = h('table', { class: 'data' }, h('thead', {}, h('tr', {}, ...['Pad', 'Wells', 'Spacing ft', 'Type curve', 'Online', 'Interference', 'Capex', 'NPV10', 'PV10/I', 'IRR'].map(x => h('th', {}, x)))));
   const pb = h('tbody');
   for (const p of r.pads) pb.append(h('tr', {}, h('td', {}, p.pad + (p.started ? ' (locked)' : '')), h('td', {}, String(p.wells)), h('td', {}, num(p.well_spacing_ft)),
     h('td', {}, `${p.typecurve} ${p.percentile.toUpperCase()}`), h('td', {}, p.online_month == null ? 'unscheduled'
       : p.online_month_p90 != null && monthName(p.online_month_p90) !== monthName(p.online_month_p10) ? h('span', {}, monthName(p.online_month_p50 ?? p.online_month), h('small', { class: 'pop' }, ` likely ${monthName(p.online_month_p10)} to ${monthName(p.online_month_p90)}`))
       : monthName(p.online_month)),
+    h('td', p.interference_child_factor != null && p.interference_child_factor < 0.97 ? { class: 'bad', title: `Edge well next to ${(p.parents || []).map(x => x.well || x.id || x).join(', ')}` } : {},
+      p.interference_child_factor == null ? '–' : `×${num(p.interference_child_factor, 2)}${p.parents?.length ? `, ${p.parents.length} parent${p.parents.length > 1 ? 's' : ''}` : ''}`),
     h('td', {}, usd(p.capex_usd)), h('td', p.npv10_usd < 0 ? { class: 'bad' } : {}, usd(p.npv10_usd)), h('td', {}, num(p.pvi, 2)), h('td', {}, p.irr == null ? '–' : pct(p.irr))));
   pt.append(pb);
   $('plan-pads').replaceChildren(...[h('h2', {}, 'Pad economics'), r.pads.length ? h('div', { style: 'overflow-x:auto' }, pt) : h('p', { class: 'hint' }, 'No pads yet: pick a section on the map below to add one.'),
@@ -938,10 +969,15 @@ async function renderBoard() {
     // the ask: editable here, against the limit
     const inp = h('input', { type: 'number', min: 0, step: 0.5, 'aria-label': `Budget request for year ${C.year}, $ MM` }); inp.value = (ask / 1e6).toFixed(1);
     inp.addEventListener('change', async () => { draft.budget_request[String(yi)] = Math.max(0, +inp.value) * 1e6; saveDraft(); await evaluatePlan(false); renderBoard(); });
+    const sug = by?.suggested_request_usd;
+    const useSug = sug != null && Math.abs(sug - ask) > 5e4 ? h('button', { type: 'button', class: 'small-btn do', onclick: async () => { draft.budget_request[String(yi)] = sug; saveDraft(); await evaluatePlan(false); renderBoard(); } },
+      `Use the suggested ${usd(sug)}`) : null;
     main.append(h('div', { class: 'panel-card ask' }, h('h2', {}, 'Your ask'),
       h('div', { class: 'req big-req' }, '$', inp, ' MM', h('span', { class: 'hint' }, ` of a ${usd(limit)} limit; the plan spends ${usd(by?.planned_capex_usd)} this year`)),
+      sug > 0 ? h('p', { class: 'hint' }, `Suggested: ${usd(sug)}, the plan’s spend plus 10% for slips and overruns (the review scores capex above 105% of the budget). `, useSug) : null,
       h('div', { class: 'bar' }, h('span', { style: `width:${Math.min(100, limit ? ask / limit * 100 : 0)}%;${ask > limit ? 'background:var(--api-red)' : ''}` })),
-      h('p', {}, `Guidance you would commit to: ${bbl(by?.oil_forecast_bbl ?? 0)} this year. `,
+      h('p', {}, `Guidance you would commit to: ${bbl(by?.oil_forecast_bbl ?? 0)} this year`,
+        by?.oil_forecast_unrisked_bbl != null && by.oil_forecast_unrisked_bbl - by.oil_forecast_bbl > 1 ? ` (${bbl(by.oil_forecast_unrisked_bbl)} before the expected pad delays and parent-child interference)` : '', '. ',
         h('span', { class: 'hint' }, `Land between ${bbl(by?.oil_forecast_bbl ?? 0)} and ${bbl((by?.oil_forecast_bbl ?? 0) * 1.1)}: below it misses guidance, more than 10% above counts as sandbagging.`)),
       h('p', { class: 'hint' }, 'Reserves: pads on this plan that start within five years are booked as proved undeveloped (PUD). The year-end review scores reserve replacement, so a plan with no future pads replaces nothing; PUDs not started within five years are removed.')));
     // the three conditions, each pass or fail with numbers and a way to fix it
@@ -968,6 +1004,8 @@ async function renderBoard() {
           : cond(M.npv10_usd > 0 && M.pvi >= 0.2, 'Development pays on your own forecast', `NPV10 ${usd(M.npv10_usd)}, PV10/I ${num(M.pvi, 2)}`, 'NPV10 above zero and PV10/I of 0.2 or more', () => setTab('plan')),
         cond(floorOk, 'Guidance at least your producing base plus 5%', bbl(by?.oil_forecast_bbl ?? 0), bc ? bbl(bc.guidance_floor_bbl) : '–', () => setTab('plan'))];
     }
+    const rvp = reviewPanel(planRes.review_preview, { title: `If the board approves this plan: the year ${C.year} review` });
+    if (rvp) main.append(rvp);
     main.append(h('h2', {}, 'What the board checks'), h('ul', { class: 'conds' }, ...rows),
       h('p', { class: 'hint' }, bc?.rejection_costs_confidence === false ? 'A retry this year is free: only the first rejection costs confidence.' : 'The first rejection this year costs 3 points of confidence; retries are free.'));
     const go = h('button', { type: 'button', class: 'board-go' }, 'Present the plan to the board');
@@ -1206,7 +1244,7 @@ async function renderHome() {
   // each with "do it" and "let staff handle it"; recent finished ones below with their outcome.
   const all = C.tasks || [];
   const openAll = all.filter(t => t.status === 'open').sort((a, b) => (b.blocking - a.blocking) || ((a.due_month ?? 1e9) - (b.due_month ?? 1e9)));
-  const COSTS = new Set(['rig-contracts', 'water', 'facility']), sets = (t) => COSTS.has(t.kind) || t.affects === 'opex' || t.affects === 'capex';
+  const COSTS = new Set(['rig-contracts', 'water', 'facility']), sets = (t) => COSTS.has(t.kind) || [].concat(t.affects || []).some(a => a === 'opex' || a === 'capex');
   openAll.sort((a, b) => (b.blocking - a.blocking) || (sets(b) - sets(a)));
   const soon = (t) => t.blocking || sets(t) || t.due_month == null || t.due_month < C.month + 3;
   const open = openAll.filter(soon).length ? openAll.filter(soon) : openAll.slice(0, 1), later = openAll.filter(t => !open.includes(t));
@@ -1281,8 +1319,22 @@ async function renderHome() {
       h('li', {}, h('span', {}, 'Approved budget'), h('strong', {}, usd(appr)))) :
       h('p', { class: 'hint' }, 'No budget approved yet this year. Take a plan to the board.'),
     guid && appr ? meter(capRatio) : null,
+    ...(() => {   // the early read: each producing pad against its forecast since it came online (from month 1)
+      const P = (C.pads_started || []).filter(p => p.actual_vs_forecast_to_date != null && p.months_producing > 0);
+      if (!P.length) return [];
+      return [h('h3', { class: 'early-h' }, 'Pads against their forecast'), h('ul', { class: 'early' }, ...P.map(p => {
+        const r = p.actual_vs_forecast_to_date, lvl = r < 0.9 ? 'neg' : r < 0.97 ? 'warn' : 'pos';
+        return h('li', {}, h('span', {}, `${p.section || p.pad} `, h('small', { class: 'hint' }, `${num(p.months_producing, 0)} month${p.months_producing >= 1.5 ? 's' : ''} online`)),
+          h('strong', { class: lvl, title: `${bbl(p.actual_oil_to_date_bbl)} against ${bbl(p.forecast_oil_to_date_bbl)} forecast` }, pct(r)));
+      })), P.some(p => p.actual_vs_forecast_to_date < 0.9) ? h('p', { class: 'hint' }, 'A pad under 90% this early usually means the type curve is high. Revising guidance early costs less than missing at year end: see the Development plan.') : null];
+    })(),
     guid && appr ? h('p', { class: 'hint' }, 'The review costs confidence below 95% of guidance, and for capex above 105% of the budget (the red line). Supplemental AFEs count.') : null].filter(Boolean));
   const headroom = C.cash_usd + C.credit_line_usd;
+  {   // the review as it stands, live: the same numbers as the top bar
+    let box = $('rv-home'); if (!box) { box = h('div', { id: 'rv-home' }); $('year-card').after(box); }
+    const rp = await refreshRP();
+    box.replaceChildren(...[rp && !C.budget_needed && C.status === 'active' ? reviewPanel(rp, { compact: true, title: `Year ${C.year} review, as it stands` }) : null].filter(Boolean));
+  }
   rivalCard();
   const shareBtn = h('button', { type: 'button', class: 'small-btn' }, 'Share this field');
   shareBtn.addEventListener('click', () => showShare(shareBtn));
