@@ -17,6 +17,8 @@ PUMP_CAPEX = 250_000.0
 PUMP_OPEX_USD_MONTH = 4_000.0
 STAGE_SPACING_FT = 250.0
 NOTES = [
+    "A well that loads up flows in bursts, and the number of bursts moves its 5-year total by about 6 % with numerical "
+    "detail: plans within about 10 % of the best are scored as a tie (3 stars from 97 % of the best).",
     "Tubing with gas: drift-flux model of the SPE1 fluid (one flow pattern, vertical pipe), not a calibrated lift correlation; "
     "liquid-only would overstate and no-slip understate the bottom-hole pressure.",
     "A pump is modelled as holding its intake pressure; pump efficiency, gas interference and failures are not modelled.",
@@ -154,7 +156,7 @@ class Lift(base.Game):
         best = max(refs.values()) if refs else res["npv10_usd"]
         ratio = base.relative(res["npv10_usd"], best, 1e6)
         state["status"] = "finished"
-        state["result"] = {"score": res["npv10_usd"], "stars": base.stars_for(ratio, (0.95, 1.0, 1.03)),
+        state["result"] = {"score": res["npv10_usd"], "stars": base.stars_for(ratio, (0.80, 0.90, 0.97)),   # within ~10 % is a tie (bursting wells)
                            "headline": f"{plan['method']} from month {plan['switch_month']}: NPV10 ${res['npv10_usd'] / 1e6:.2f} MM, "
                                        + base.versus(res["npv10_usd"], best, "the best standard plan"),
                            "breakdown": {"npv10_usd": res["npv10_usd"], "oil_bbl_5yr": res["oil_bbl_5yr"], "references_npv10_usd": refs, "ratio": ratio},

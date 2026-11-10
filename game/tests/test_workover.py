@@ -36,6 +36,33 @@ class Workover(unittest.TestCase):
         career.advance(st, truth, self.sim, 1)
         self.assertEqual(len(well["oil_hist"]["oil"]), len(before) + 1)
 
+    def test_rta_on_a_producing_well(self):
+        import rta
+        st, truth = career.load(self.cid)
+        st, truth = self.approve([{"section": s, "wells": 3} for s in self.opens(st, 1)])
+        career.advance(st, truth, self.sim, 11)
+        w = next(w for w in st["wells"] if len((w.get("oil_hist") or {}).get("oil", [])) >= 6)
+        r = rta.analyse(st, truth, self.sim, w["id"])
+        self.assertGreater(len(r["points"]), 3)
+        self.assertGreater(r["linear_flow"]["a_sqrt_k_ft2_sqrt_md"], 0)
+        self.assertTrue(all(p["dp_over_q"] > 0 for p in r["points"]))
+        with self.assertRaises(career.CareerError):
+            rta.analyse(st, truth, self.sim, "nope")
+
+    def test_probabilistic_eur_fan_is_ordered(self):
+        import prob
+        st, truth = career.load(self.cid)
+        st, truth = self.approve([{"section": s, "wells": 3} for s in self.opens(st, 1)])
+        career.advance(st, truth, self.sim, 11)
+        w = next(w for w in st["wells"] if len((w.get("oil_hist") or {}).get("oil", [])) >= 4)
+        r = prob.run(st, truth, self.sim, w["id"])
+        e = r["eur_oil_bbl"]
+        self.assertLessEqual(e["p90"], e["p50"])
+        self.assertLessEqual(e["p50"], e["p10"])
+        self.assertGreaterEqual(e["p90"], r["cum_oil_bbl"])
+        self.assertEqual(len(r["fan"]["p50"]), prob.FAN_MONTHS)
+        self.assertNotIn("porosity", str(r["kept"]))
+
     def test_share_code_round_trip(self):
         st, _ = career.load(self.cid)
         code = workover.share_code(st)

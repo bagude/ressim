@@ -281,13 +281,102 @@ function call_field(d, outdir)
         "mismatch_psi" => r.mismatch_psi)
 end
 
+"Pressure buildup (welltest.jl): flow at a set rate, shut in; the shut-in record and its log-log derivative."
+function call_buildup(d, outdir)
+    s = spec_from(d["spec"])
+    r = Ressim.run_buildup(s; flow_days = Float64(d["flow_days"]), shut_days = Float64(d["shut_days"]), oil_rate_stb_d = Float64(d["oil_rate_stb_d"]),
+        outdir = joinpath(outdir, "buildup"))
+    dv = Ressim.pressure_derivative(r.hours, r.pressure_psi; reference_psi = r.flowing_pressure_psi)
+    return Dict("hours" => r.hours, "pressure_psi" => r.pressure_psi, "flowing_pressure_psi" => r.flowing_pressure_psi,
+        "flow_days_axis" => r.flow_days_axis, "flow_pressure_psi" => r.flow_pressure_psi, "flow_rate_stb_d" => r.flow_rate_stb_d,
+        "rate_held" => r.rate_held, "dp_psi" => dv.dp, "derivative_psi" => dv.derivative, "cells" => r.run.cells)
+end
+
+"An inflow curve scaled from the simulated model to the whole well (`scale` = repeating stages per well)."
+scaled_curve(c, k) = (bhp_psi = collect(Float64, c.bhp_psi), oil_stb_d = k .* c.oil_stb_d, gas_mscf_d = k .* c.gas_mscf_d, water_stb_d = k .* c.water_stb_d)
+
+"""Nodal analysis for a pad (nodal.jl). Each well gives either `spec` (its inflow curve is simulated at `at_month`) or `curve`
+(a curve returned earlier, so nothing is simulated). Returns per well the curve, the tubing need at the curve's rates (VLP), the
+nodal point with no lift gas and with the well's `lift_gas_mscf_d`, and the gas-lift curve; then the allocation of `total_mscf_d`."""
+function call_inflow(d, outdir)
+    node = Float64(get(d, "node_psi", 150.0)); grid = Float64.(get(d, "gas_rates_mscf_d", [0.0]))
+    pt(p) = isnothing(p) ? nothing : Dict("bhp_psi" => p.bhp_psi, "oil_stb_d" => p.oil, "gas_mscf_d" => p.gas, "water_stb_d" => p.water,
+                                          "lift_gas_mscf_d" => p.lift_gas_mscf_d, "at_curve_end" => p.at_curve_end)
+    out = Any[]; curves = Any[]
+    for (i, w) in enumerate(d["wells"])
+        lift = Ressim.driftflux_lift(; depth_ft = Float64(get(w, "depth_ft", 9000.0)), id_in = Float64(get(w, "tubing_id_in", 2.441)))
+        c = if haskey(w, "curve")
+            cv = w["curve"]
+            (bhp_psi = Float64.(cv["bhp_psi"]), oil_stb_d = Float64.(cv["oil_stb_d"]), gas_mscf_d = Float64.(cv["gas_mscf_d"]), water_stb_d = Float64.(cv["water_stb_d"]))
+        else
+            raw = Ressim.inflow_curve(spec_from(w["spec"]); at_month = Int(d["at_month"]), bhps_psi = Float64.(d["bhps_psi"]),
+                test_days = Float64(get(d, "test_days", 1.0)), outdir = joinpath(outdir, "well$(i)"))
+            scaled_curve(raw, Float64(get(w, "scale", 1.0)))
+        end
+        vlp = [lift(node, c.oil_stb_d[k], c.water_stb_d[k], c.gas_mscf_d[k]) for k in eachindex(c.bhp_psi)]
+        gl = Ressim.gaslift_curve(c, lift; node_psi = node, gas_rates_mscf_d = grid)
+        push!(curves, gl)
+        lg = Float64(get(w, "lift_gas_mscf_d", 0.0))
+        push!(out, Dict("curve" => Dict("bhp_psi" => c.bhp_psi, "oil_stb_d" => c.oil_stb_d, "gas_mscf_d" => c.gas_mscf_d, "water_stb_d" => c.water_stb_d),
+            "vlp_bhp_psi" => vlp, "natural" => pt(Ressim.nodal_point(c, lift; node_psi = node)),
+            "point" => pt(Ressim.nodal_point(c, lift; node_psi = node, lift_gas_mscf_d = lg)),
+            "gaslift" => Dict("gas_mscf_d" => gl.gas_mscf_d, "oil_stb_d" => gl.oil_stb_d)))
+    end
+    res = Dict{String, Any}("wells" => out, "node_psi" => node)
+    if haskey(d, "total_mscf_d")
+        a = Ressim.allocate_lift_gas(curves, Float64(d["total_mscf_d"]))
+        res["allocation"] = Dict("gas_mscf_d" => a.gas_mscf_d, "oil_stb_d" => a.oil_stb_d, "total_oil_stb_d" => a.total_oil_stb_d, "unused_mscf_d" => a.unused_mscf_d)
+    end
+    return res
+end
+
+"The three laboratory tests on a sample holding `rs` Mscf/stb of gas (pvtlab.jl)."
+function call_pvt(d)
+    rs = Float64(d["rs"])
+    cce = haskey(d, "cce_pressures") ? Ressim.cce_test(; rs = rs, pressures = Float64.(d["cce_pressures"])) : Ressim.cce_test(; rs = rs)
+    dl = haskey(d, "dl_pressures") ? Ressim.differential_liberation(; rs = rs, pressures = Float64.(d["dl_pressures"])) : Ressim.differential_liberation(; rs = rs)
+    return Dict("rs" => rs, "bubble_point_psia" => Ressim.bubble_point(rs), "cce" => cce, "dl" => dl, "separator" => Ressim.separator_test(; rs = rs))
+end
+
+"A simulated DFIT (f7's run_dfit) and the standard analysis of it."
+function call_dfit(d)
+    f(k) = Float64(d[k])
+    r = try
+        Ressim.run_dfit(; pay_ft = f("pay_ft"), youngs_psi = f("youngs_psi"), rate_bpm = f("rate_bpm"), pump_minutes = f("pump_minutes"),
+            falloff_hours = f("falloff_hours"), closure_psi = f("closure_psi"), reservoir_psi = f("reservoir_psi"), perm_md = f("perm_md"),
+            porosity = f("porosity"), total_compressibility = f("total_compressibility"), reservoir_viscosity_cp = f("reservoir_viscosity_cp"))
+    catch e
+        return Dict("failed" => true, "message" => first(sprint(showerror, e), 300))
+    end
+    a = Ressim.dfit_analysis(r.minutes, r.pressure_psi; pump_minutes = f("pump_minutes"), injected_bbl = r.injected_bbl,
+        height_ft = r.truth.fracture_height_ft,                              # the test fracture's own height (f7)
+        youngs_psi = f("youngs_psi"), porosity = f("porosity"), total_compressibility = f("total_compressibility"),
+        reservoir_viscosity_cp = f("reservoir_viscosity_cp"))
+    pick(k) = hasproperty(a, k) ? getproperty(a, k) : nothing
+    return Dict("failed" => false, "minutes" => r.minutes, "pressure_psi" => r.pressure_psi, "leakoff_ft_sqrtmin" => r.leakoff_ft_sqrtmin,
+        "efficiency" => r.efficiency, "half_length_ft" => r.half_length_ft, "injected_bbl" => r.injected_bbl,
+        "analysis" => Dict(string(k) => pick(k) for k in (:G, :dPdG, :GdPdG, :closure_G, :closure_psi, :closure_minutes, :isip_psi, :efficiency,
+                                                          :slope_psi, :leakoff_ft_sqrtmin, :pore_pressure_psi, :perm_md_from_leakoff, :kh_mdft,
+                                                          :radial_reached, :late_slope)))
+end
+
+"Staged starts in one model (parent and child laterals): monthly oil per stage over the whole horizon."
+function call_staged(d)
+    sm = Int.(d["start_month"]); dd = copy(d); delete!(dd, "start_month")
+    s = spec_from(dd)
+    kw = Dict{Symbol, Any}(f => getfield(s, f) for f in fieldnames(Ressim.FracWellSpec)); kw[:start_month] = sm
+    r = Ressim.run_fracwell(Ressim.FracWellSpec(; kw...))
+    return Dict("oil" => [r.monthly_oil_stb[:, j] for j in 1:size(r.monthly_oil_stb, 2)])
+end
+
 function handle_call(parts)
     kind, inp, outp = parts[2], parts[3], parts[4]
     d = TOML.parsefile(inp)
     outdir = dirname(outp)
     t0 = time()
     res = kind == "grow" ? call_grow(d) : kind == "bhpsched" ? call_bhpsched(d, outdir) : kind == "marching" ? call_marching(d, outdir) :
-          kind == "field" ? call_field(d, outdir) : kind == "geology" ? call_geology(d) : kind == "structure" ? call_structure(d) : error("unknown call '$kind'")
+          kind == "field" ? call_field(d, outdir) : kind == "geology" ? call_geology(d) : kind == "structure" ? call_structure(d) :
+          kind == "buildup" ? call_buildup(d, outdir) : kind == "inflow" ? call_inflow(d, outdir) : kind == "pvt" ? call_pvt(d) : kind == "dfit" ? call_dfit(d) : kind == "staged" ? call_staged(d) : error("unknown call '$kind'")
     open(outp * ".tmp", "w") do io
         jsonv(io, res)
     end

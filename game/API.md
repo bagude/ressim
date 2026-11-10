@@ -363,6 +363,74 @@ frac hits, lift, well luck). Pads locked before this change have no card.
 - `GET /api/career/share?id=` → `{ok, code: "RS1-...", note}`. `POST /api/career/new {name, share}` starts a career on
   the same starting field (seed). No decisions are carried.
 
+## Phase B and C career additions
+- **#10 RTA:** `GET /api/career/rta?id=&well=` (your drilled wells with 3+ producing months) → `{ok, well, points:
+  [{t_days, sqrt_t, q_stb_d, np_stb, pwf_psi, dp_over_q, q_over_dp, np_over_dp}], linear_flow:
+  {slope_psi_per_stbd_sqrt_day, a_sqrt_k_ft2_sqrt_md, per_stage_ft2_sqrt_md, area_convention, apparent, porosity_used},
+  flowing_material_balance: {x_intercept, contacted_oil_in_place_stb, expansion_recovery_stb, note} | null,
+  loglog_slope, inputs, notes[]}`.
+  - Constant-pressure linear flow: A√k = 125.2·B_o/m·√(μ/(φc_t)), with A = both faces of every fracture; formulas
+    checked by f7.
+  - Monthly rates are plotted at t* = ((√t1+√t2)/2)².
+  - The values are apparent: below the bubble point they read low.
+- **#2 probabilistic EUR:** `POST /api/career/eur {id, well}` starts a background history match. Poll with
+  `GET /api/career/eur?id=&well=`, which returns `{status: running|done|failed|none, result?: {well,
+  months_matched, cum_oil_bbl, eur_oil_bbl: {p90, p50, p10}, fan: {month[], p90[], p50[], p10[]} (120 months from
+  now), kept: [{match_error_log, perm_md, thickness_ft, half_length_ft}], samples, notes[]}}`.
+  - Method: 24 prior draws around the company map and the design, run on f7's screening mesh; the best 8 are kept
+    and scaled to the well's cumulative.
+  - P90 is the low case.
+- **#14 emissions:**
+  - `history.co2e_t[]` (monthly), and `view.emissions = {carbon_usd_t, target_kg_boe, factors, electric_frac_completion_factor,
+    vru_usd_pad, co2e_t_ytd, notes[]}`.
+  - Plan: `plan.emissions = {electric_frac: bool, vru: bool}`. Electric frac costs +4 % completion and halves frac
+    emissions. VRU is $150k per pad and cuts fugitive emissions 75 %.
+  - The carbon price ($25/t) is charged in operating cash.
+  - The year review adds the part `emissions_intensity` (−4 to +2 against the target, 6.5 kg/BOE falling 8 %/yr; a standard field runs about 5-6) and
+    `reviews[].emissions = {co2e_t, intensity_kg_boe, target_kg_boe}`.
+  - The factors are illustrative; see notes.
+
+## Acquisition (#4)
+- **Minigame `acquisition`:** view `{phase, sections: [{section, developed}], data_room: [{id, section, lateral_ft, design,
+  wells_per_section, months, oil_bbl[]}], seller_case: {pdp_npv10_usd, inventory_npv10_usd, asking_usd, price_usd_bbl,
+  note}, rivals[], price_usd_bbl, inventory_wells_per_section, outcome?}`.
+- **Actions:** `bid {bid_mm}` or `pass`.
+- **Result breakdown:** `{won, bid_usd, value_created_usd, benchmark_usd (win just above the top rival, only when that
+  pays), true_value_usd, seller_asking_usd, rival_bids_usd}`, revealed after the bid.
+- **Physics and rules:** the data-room wells are simulated on the package's hidden rock. The seller's case is
+  optimistic by construction, and rivals bid a shaded share of noisy estimates (the winner's curse). Both are game
+  rules, labelled in notes.
+- **In a career:** a yearly optional job. The package is a new row of 3 sections (2 developed with 3-4 producing
+  wells, 1 undeveloped), with rock from the career's own grid. Winning merges the sections, rock and wells (as
+  inherited wells with their history) into the field and charges the bid. Staff do not bid.
+
+## Parent-child, DFIT, and the new jobs in the career
+- **#1 parent-child (grid careers):** when a pad locks, each edge well with a producing parent across the section line
+  within 1,500 ft gets three runs of f7's staged-start model on the screening mesh (parent and child together, the
+  parent alone, the child alone), read as ratios over 10 years.
+  - The child gets a constant factor (`multipliers[].why = "parent-child: next to X"`); the parent gets one from the
+    child's start.
+  - An operations item says so: "Pad X: parent-child interference".
+  - Live at 500 ft and 6 months: child 92 %, parent 72 % of its own outlook. At 880 ft: 98 % and 95 %.
+  - Limits are in interference.py's notes: no asymmetric growth; frac hits are their own job.
+- **DFIT (Pump the Job's minifrac):** the minifrac runs f7's simulated DFIT and the standard analysis.
+  `known.minifrac` adds `{closure_psi, pore_pressure_psi, perm_md_from_leakoff, efficiency, radial_reached, source}`, and
+  the view adds `dfit: {minutes[], pressure_psi[], G[], dPdG[], GdPdG[], isip_psi, closure_G, closure_minutes}` for the
+  G-function plot.
+  - Closure and pore pressure match the synthetic record by construction.
+  - Permeability from leak-off is a factor-of-two number that depends on the fit (see notes).
+  - If the test does not close within 72 hours, `known.minifrac.note` says so.
+- **New career jobs:**
+  - `pvt-lab`: year 1, optional. Your reported Bo becomes the company's PVT (`state.pvt`), and RTA uses it
+    (`inputs.bo_source`).
+  - `well-test`: yearly once you have a well with 6+ months of production. Your permeability anchors the
+    probabilistic-EUR prior for that section (`state.well_tests`). The view's porosity is named `phi`.
+  - `gaslift`: once a pad has produced 2 years. Your split against staff's equal split sets a factor of 0.85-1.15
+    on the pad, fading over 24 months.
+  - `acquisition`: yearly (see above).
+  - Staff outcomes: textbook fluid properties, no test, an equal split, no bid.
+- `GET /api/mg` now lists well-test, gaslift, pvt-lab and acquisition.
+
 ## Mid-year revision
 `POST /api/career/plan {id, plan, revise_guidance?: bool, budget_usd?: number}` outside a budget meeting returns
 `revision` (a preview, beside `board_check`, which is null then). `POST /api/career/revise` with the same body applies
@@ -466,7 +534,56 @@ session = {id, kind, title, status: active|finished, turn, notes[] (always show)
            actions: [{name, label, args: {name: {type: number|int|enum|bool|list, min?, max?, step?, options?, unit?, default?, length?, max_length?}}}],
            view: {...game-specific}, result?: {score, stars (0-3, or null for career-only commits), headline, breakdown, lookback}}
 ```
-Kinds: pump-job, flowback, facility, lift, land-auction, rig-contracts, hedging, diagnostics, well-control, frac-hits, water.
+Kinds: pump-job, flowback, facility, lift, land-auction, rig-contracts, hedging, diagnostics, well-control, frac-hits, water,
+well-test, gaslift, pvt-lab. (The last three are registered but not yet in `mgapi.ORDER`, so `GET /api/mg` does not list
+them; `/api/mg/<kind>/new|act` work.)
+
+**well-test (Pressure Buildup)**, simulator-backed (`buildup` call, about 1-20 s per test).
+- **View:** `{well: {stages, half_length_ft, net_pay_ft, porosity, viscosity_cp, total_compressibility_per_psi, bo_rb_stb,
+  fracture_area_ft2, initial_pressure_psi, bhp_floor_psi, stage_spacing_ft, well_spacing_ft, conductivity_mdft,
+  current_rate_stb_d, lateral_ft}, tests: [test], tests_left, answers, spent_usd, costs: {mobilisation_usd, crew_usd_day,
+  oil_net_usd_bbl, deferred}, record_from_hours}`.
+  `test = {rate_stb_d, flow_days, shut_days, rate_held, flowing_pressure_psi, hours[], pressure_psi[], dp_psi[],
+  derivative_psi[] (null at the ends), derivative_superposed_psi[], flow: {days[], pressure_psi[], rate_stb_d[]}, crew_usd,
+  deferred_bbl, deferred_usd, cost_usd}`. Plot pressure against hours, and `dp_psi` with the derivatives on log-log axes.
+- **Actions:** `run_test {rate_stb_d (5 to 2x the current rate), flow_days (0.5-30), shut_days (0.25-30)}`, at most 2 tests;
+  `interpret {k_md (1e-5 to 1), linear_flow: "yes"|"no"}` (final; offered after a test).
+- **Result breakdown:** `{points: {permeability (0-50), flow_regime (0/15), cost (0-35), short_shut_in (0/-15)}, answers,
+  cost_usd, deferred_bbl, linear_flow_seen, short_shut_in}`. Lookback: `{linear_flow_seen, window_hours,
+  truth: {perm_md, analyst_k_md, analyst_slope_psi_sqrt_day}}`.
+- **Career params:** `{career: true, rock: {perm_md, porosity, thickness_ft, net_ft?, sw?}, design: {half_length_ft,
+  stage_spacing_ft, conductivity_mdft}, wells_per_section, well?}`. In a career-linked session the scrub removes
+  `well.porosity` (needed for the interpretation) and `lookback.truth`.
+
+**gaslift (Nodal and Gas-Lift Allocation)**, simulator-backed (`inflow` call; `new` about 6 s, `allocate` under 1 s).
+- **View:** `{month, total_lift_gas_mscf_d, node_psi, wells: [{id, half_length_ft, net_pay_ft, stages, tubing_id_in, depth_ft,
+  curve: {bhp_psi[], oil_stb_d[], gas_mscf_d[], water_stb_d[]} (IPR), vlp_bhp_psi[] (tubing need at the curve's rates),
+  natural: null | {bhp_psi, oil_stb_d, gas_mscf_d, water_stb_d, lift_gas_mscf_d, at_curve_end},
+  gaslift: {gas_mscf_d[], oil_stb_d[]}}], answers, oil_net_usd_bbl, lift_gas_usd_mcf, days_valued}`.
+  `natural: null` means the well cannot flow without lift gas.
+- **Actions:** `allocate {gas_mscf_d: [one number per well, in well order]}` (final). The sum may not exceed the total.
+- **Result breakdown:** `{yours: {gas_mscf_d[], oil_stb_d[], bhp_psi[], total_oil_stb_d, value_usd}, ratio_to_best,
+  ratio_to_equal, ratio_to_allocator, references: {best, allocator, grid_search, equal_split, no_lift_gas}}`, with each reference in the same
+  shape as `yours`. Score = 100 x ratio_to_best; stars at 0.9 / 0.97 / 0.995. Lookback: `{wells: [{id, half_length_ft,
+  net_pay_ft, perm_md}]}`.
+- **Career params:** `{career: true, wells: [{perm_md, thickness_ft, half_length_ft}] (1-4), month?}`.
+
+**pvt-lab (PVT Lab)**, simulator-backed (`pvt` call: instant once compiled, about 25 s for the first call after a worker start).
+- **View:** `{reservoir_pressure_psia, samples: [{id, method, label, cost_usd, sampling_pressure_psia? (bottom-hole),
+  separator_gor_scf_stb? (recombination), tests: {cce?: {bubble_point_psia, rows: [{pressure_psia, relative_volume, oil_rb,
+  gas_rb, oil_density_lb_ft3, y_function}]}, dl?: {bubble_point_psia, residual_oil_rb_stb, gas_gravity, rows:
+  [{pressure_psia, rsd_scf_bbl, bod, btd, bg_rb_mscf, gas_released_scf_bbl, oil_density_lb_ft3}]}, separator?:
+  {bubble_point_psia, gor_scf_stb, bo_rb_stb, oil_gravity_api, gas_gravity}}}], samples_left, spent_usd, answers,
+  costs: {samples: {method: usd}, tests: {test: usd}}, methods: {method: label}}`.
+- **Actions:**
+  - `sample {method: bottomhole_conditioned | bottomhole_flowing | surface_recombination}`, at most 3 samples.
+  - `lab {sample (1-n), test: cce | dl | separator}`; each test can be bought once per sample.
+  - `report {bubble_point_psia (500-6000), bo_rb_stb (1.0-2.5)}` (final).
+- **Result breakdown:** `{points: {bubble_point (0-50), bo (0-50), cost (-spent / $6,000)}, answers, spent_usd}`.
+  Lookback: `{bubble_point_psia, bo_rb_stb, rs_mscf_stb, samples: [{id, method, quality, rs_mscf_stb, bubble_point_psia}]}`.
+  `quality` names a gas-rich sample.
+- **Career params:** `{career: true, rs?}`. The default is 1.27 Mscf/stb, the SPE1 fluid of the career model.
+
 **pump-job clusters** (standalone only): the `pump` action takes `clusters` (1-6, default 3) and `shots_per_cluster`
 (2-24, default 8); `rate_bpm` is per cluster and the stage rate (rate x clusters) is capped at 100 bbl/min. The view
 adds `clusters: [{fluid_share, half_length_ft, propped_half_length_ft, perf_drop_psi, shadow_psi, share_in_pay,
@@ -474,7 +591,7 @@ height_at_well_ft, position_ft}]` and `perf_friction_psi`; `series.rate_bpm` is 
 3 clusters, 8 shots, 15 bbl/min each. Friction is charged as pumping horsepower. A design the model cannot grow returns
 a 400 with nothing charged. In career mode the plan's stage spacing already sets fracture spacing, so the job is one
 cluster and the args are not offered.
-The simulator-backed kinds (pump-job, flowback, facility, lift, diagnostics) take 2-30 s per action. Game-specific
+The simulator-backed kinds (pump-job, flowback, facility, lift, diagnostics, well-test, gaslift, pvt-lab) take 2-30 s per action. Game-specific
 view fields were sent to the front-end session as each game landed. Each game's module docstring in
 `game/minigames/<kind>.py` describes what is physics and what is a game rule.
 

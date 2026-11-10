@@ -4,7 +4,7 @@ import minigames
 from minigames import base
 
 ORDER = ["pump-job", "flowback", "facility", "lift", "land-auction", "rig-contracts", "hedging", "diagnostics", "well-control",
-         "frac-hits", "water"]
+         "frac-hits", "water", "well-test", "gaslift", "pvt-lab", "acquisition"]
 
 
 def apply_to_career(st, worker):

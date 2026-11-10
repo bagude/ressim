@@ -4,7 +4,7 @@ import importlib
 from .base import REGISTRY, GameError  # noqa: F401
 
 GAMES = ["pump_job", "flowback", "facility", "lift", "land_auction", "rig_contracts", "hedging", "diagnostics", "well_control",
-         "frac_hits", "water"]
+         "frac_hits", "water", "well_test", "gaslift", "pvt_lab", "acquisition"]
 LOADED, FAILED = [], {}
 for _m in GAMES:
     try:

@@ -63,6 +63,17 @@ def autoplay(kind, s):
             name, args = "swap", {"share_pct": 50, "quarters": 4}
         if kind == "rig-contracts" and "contract" in acts and len(v.get("fleet") or []) < 2:
             name, args = "contract", {"months": 12}                                        # two 12-month rigs, then spot as needed
+        if kind == "pvt-lab":                                                             # sample, two lab tests, report what they say
+            smp = v.get("samples") or []
+            if not smp:
+                name, args = "sample", {"method": "bottomhole_conditioned"}
+            elif "cce" not in (smp[0].get("tests") or {}):
+                name, args = "lab", {"sample": smp[0]["id"], "test": "cce"}
+            elif "separator" not in (smp[0].get("tests") or {}):
+                name, args = "lab", {"sample": smp[0]["id"], "test": "separator"}
+            else:
+                cce, sep = smp[0]["tests"]["cce"], smp[0]["tests"]["separator"]
+                name, args = "report", {"bubble_point_psia": cce.get("bubble_point_psia") or 4000, "bo_rb_stb": sep.get("bo_rb_stb") or 1.6}
         if kind == "land-auction" and name == "bid":
             args = {k: 0.5 for k in acts["bid"]["args"]}                                  # $0.5 MM on every tract
         r = post(f"/api/mg/{kind}/act", {"id": s["id"], "action": name, **args})

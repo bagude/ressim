@@ -66,6 +66,16 @@ def handle(method, path, query, body, worker):
                 r = workover.perform(st, body.get("well"), body.get("kind"))
                 career.save(st)
                 return 200, {"ok": True, "workover": r, "career": career.view(st)}
+            if path == "/api/career/eur":
+                import prob
+                well = body.get("well") if method == "POST" else query.get("well", [""])[0]
+                if not any(w["id"] == well for w in st["wells"]):
+                    return 400, {"ok": False, "errors": ["probabilistic EUR works on your own drilled wells"]}
+                j = prob.start(st["id"], well, st["month"], ts) if method == "POST" else prob.status(st["id"], well, st["month"])
+                return 200, {"ok": True, **{k: v for k, v in j.items()}}
+            if method == "GET" and path == "/api/career/rta":
+                import rta
+                return 200, {"ok": True, **rta.analyse(st, truth, ts, query.get("well", [""])[0])}
             if method == "GET" and path == "/api/career/diagnostics":
                 return 200, {"ok": True, "month": st["month"], **career.diagnostics(st, truth, ts)}
             if method == "GET" and path == "/api/career/analogs":

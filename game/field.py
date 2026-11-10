@@ -170,7 +170,7 @@ def spec_for(rock_s, design, wells_per_section):
         "pressure_psi": rock_s["pressure_psi"], "fluid": "blackoil_spe1", "mesh": "coarse", "months": HORIZON, "dt_max_days": 30.0,
         "stages": 1, "spacing_ft": design["stage_spacing_ft"], "width_ft": SECTION_FT / wells_per_section,
         "half_length_ft": design["half_length_ft"], "conductivity_mdft": design["conductivity_mdft"], "bhp_psi": design["bhp_psi"],
-        **({"net_ft": rock_s["net_ft"], "sw": rock_s["sw"]} if "net_ft" in rock_s else {}),   # grid careers: the map path, exact
+        **({"net_ft": rock_s["net_ft"], "sw": rock_s["sw"], "fracture_width_ft": 0.1} if "net_ft" in rock_s else {}),   # grid careers: the map path, thin fracture cells (f7's default since 2026-11-10)
     }
 
 

@@ -1,6 +1,6 @@
 {
  "first-light": {
-  "best_npv_usd": 1656482.8945326686,
+  "best_npv_usd": 1612858.784734243,
   "design": {
    "stages": 10,
    "half_length_ft": 375.0,
@@ -10,7 +10,7 @@
   "runs": 25
  },
  "fast-rock": {
-  "best_npv_usd": 6859242.600267728,
+  "best_npv_usd": 6840320.402016639,
   "design": {
    "stages": 5,
    "half_length_ft": 375.0,

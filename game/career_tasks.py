@@ -24,7 +24,7 @@ import random
 import opecon
 from minigames import REGISTRY, base
 
-YEARLY_OPTIONAL = ["hedging", "rig-contracts", "water", "facility", "land-auction", "diagnostics"]
+YEARLY_OPTIONAL = ["hedging", "rig-contracts", "water", "facility", "land-auction", "diagnostics", "acquisition"]
 KICK_PROBABILITY = 0.04
 
 
@@ -163,8 +163,20 @@ def on_lock(state, truth, pad, plan_pad, ctx):
 
 
 def on_month(state, truth, ctx):
-    """Lift decision once a pad has produced for a year."""
+    """Lift decision once a pad has produced for a year; gas-lift allocation once it has produced for two."""
     c = _career()
+    gl_done = {t["link"].get("pad") for t in state.get("tasks", []) if t["kind"] == "gaslift"}
+    for pid, p in state["locked"].items():
+        if pid in gl_done or (state["month"] * opecon.MONTH_DAYS - p["online"]) < 24 * opecon.MONTH_DAYS:
+            continue
+        rock = c.rock_of(truth, p["section"])
+        ws = [w for w in state["wells"] if w["pad"] == pid][:4]
+        if len(ws) < 2:
+            continue
+        r = random.Random(f"{state['seed']}|gl|{pid}")
+        params = {"career": True, "month": 12, "wells": [{"perm_md": rock["perm_md"] * r.uniform(0.6, 1.4), "thickness_ft": rock.get("net_ft", rock["thickness_ft"]),
+                                                           "half_length_ft": w["design"]["half_length_ft"] * r.uniform(0.7, 1.1)} for w in ws]}
+        new_task(state, truth, "gaslift", f"Lift gas for pad {pid}", {"pad": pid}, False, state["month"] * opecon.MONTH_DAYS + 3 * opecon.MONTH_DAYS, params, ctx)
     done = {t["link"].get("pad") for t in state.get("tasks", []) if t["kind"] == "lift"}
     for pid, p in state["locked"].items():
         if pid in done or (state["month"] * opecon.MONTH_DAYS - p["online"]) < 12 * opecon.MONTH_DAYS:
@@ -187,9 +199,22 @@ def on_budget(state, truth, ctx, forecast_oil_by_month):
         "rig-contracts": {"target_wells": max(10, min(150, 4 * sum(p["wells"] for p in state["plan"]["pads"] if p["id"] not in state["locked"]) or 20))},
         "water": {"volume": "high" if sum(p["wells"] for p in state["plan"]["pads"] if p["id"] not in state["locked"]) > 8 else "low"},
         "facility": {"career": True}, "land-auction": {}, "diagnostics": {"career": True},
+        "acquisition": {"career": True, "package": build_package(state, truth),
+                        "max_affordable_usd": max(0.0, c.capital_limit(state) - sum(x["usd"] for x in state.get("costs_pending", [])))},
+        "pvt-lab": {"career": True, "rs": 1.27},
+        "well-test": {"career": True},
     }
     own = [w for w in state["wells"] if w["online_day"] < m0 * opecon.MONTH_DAYS - 6 * opecon.MONTH_DAYS]
-    for kind in YEARLY_OPTIONAL:
+    for kind in YEARLY_OPTIONAL + ["pvt-lab", "well-test"]:
+        if kind == "pvt-lab" and (y > 0 or any(t["kind"] == "pvt-lab" for t in state.get("tasks", []))):
+            continue                                          # one fluid study, in the first year
+        if kind == "well-test":
+            if not own:
+                continue
+            w = own[-1]
+            rk = c.rock_of(truth, w["section"])
+            params[kind].update(rock={k: rk[k] for k in ("perm_md", "porosity", "thickness_ft", "net_ft", "sw") if k in rk},
+                                design=w["design"], wells_per_section=w["wells_per_section"], well=w["id"])
         if kind == "diagnostics":
             if not own:
                 continue
@@ -320,6 +345,36 @@ def apply(state, truth, mg):
         add_cost(state, state["month"] * opecon.MONTH_DAYS, float(mg.get("paid_usd", 0.0)) + float(mg.get("appraisal_usd", 0.0)),
                  "lease bonus and appraisal")
         note = f"{len(added)} new section(s) join the field: {', '.join(added)}." if added else "No tracts won."
+    elif kind == "acquisition":
+        b = res.get("breakdown") or {}
+        if b.get("won"):
+            added = merge_package(state, truth, (mg.get("truth") or {}).get("package") or {"sections": [], "wells": []})
+            add_cost(state, state["month"] * opecon.MONTH_DAYS, float(b.get("bid_usd", 0.0)), "acquisition")
+            note = (f"Acquired sections {', '.join(added)}; their wells now produce for you. The deal closes at the end of this "
+                    f"month: ${b['bid_usd'] / 1e6:.1f} MM leaves cash then.")
+        else:
+            note = "No acquisition."
+        vs = _versus("value created", "usd", b.get("value_created_usd", 0.0), 0.0, note="staff do not bid on packages")
+    elif kind == "pvt-lab":
+        a = (mg.get("answers") or {})
+        state["pvt"] = {"bubble_point_psia": a.get("bubble_point_psia"), "bo_rb_stb": a.get("bo_rb_stb"), "month": state["month"]}
+        note = "Your fluid study is now the company's PVT: rate-transient analysis uses your Bo."
+        vs = _versus("lab score", "points", float(res.get("score", 0.0)), 0.0, note="staff use textbook values")
+    elif kind == "well-test":
+        a = (mg.get("answers") or {})
+        k = a.get("k_md")
+        if k:
+            state.setdefault("well_tests", {})[(task.get("link") or {}).get("well") or ""] = {"k_md": float(k), "month": state["month"]}
+        note = "Your permeability from the test now anchors probabilistic EUR for that section."
+        vs = _versus("test score", "points", float(res.get("score", 0.0)), 0.0, note="staff run no test")
+    elif kind == "gaslift":
+        b2 = res.get("breakdown") or {}
+        re = b2.get("ratio_to_equal") or 1.0
+        f = max(0.85, min(1.15, re))
+        for w in pad_wells:
+            w.setdefault("multipliers", []).append({"from_month": state["month"], "factor": f, "fade_months": 24, "why": "lift gas split"})
+        note = f"Pad {pad}: your lift-gas split gives {100 * f:.0f} % of staff's equal split, fading over 2 years."
+        vs = _versus("pad oil, % of an equal split", "pct", 100 * f, 100.0)
     elif kind == "diagnostics":
         sc = res.get("score", 0.0)
         d = max(-4.0, min(4.0, (sc - 60.0) / 10.0))
@@ -332,7 +387,7 @@ def apply(state, truth, mg):
         refs = b.get("references_npv10_usd") or {}
         best = max(refs.values()) if refs else None
         ratio = base.relative(inst.get("npv10_usd", 0.0), best, 1e6) if best is not None else 1.0
-        f = max(0.6, min(1.3, ratio))
+        f = 1.0 if abs(ratio - 1.0) < 0.10 else max(0.6, min(1.3, ratio))   # within the burst noise: no change
         for w in pad_wells:
             w.setdefault("multipliers", []).append({"from_month": state["month"], "factor": f, "why": "lift plan"})
         note = f"Pad {pad} production from now: {100 * f:.0f} % of standard lift practice."
@@ -365,6 +420,10 @@ STANDARD_OUTCOME = {
     "hedging": "staff do not hedge: revenue follows the oil price",
     "land-auction": "staff do not bid: the field stays as it is",
     "diagnostics": "no diagnosis goes to the board: confidence unchanged",
+    "acquisition": "staff do not bid: the package goes to a rival",
+    "pvt-lab": "staff use textbook fluid properties",
+    "well-test": "staff run no test",
+    "gaslift": "staff split the lift gas equally",
     "lift": "standard lift practice continues (no change)",
     "rig-contracts": "staff contract rigs with typical market timing: this year's rig costs run 15 % above a well-played market",
     "water": "staff source water with a typical plan: this year's completion costs run 15 % above a well-played plan",
@@ -389,6 +448,50 @@ def delegate(state, task_id, truth=None):
 def add_cost(state, day, usd, label):
     if usd:
         state.setdefault("costs_pending", []).append({"day": float(day), "usd": float(usd), "label": label})
+
+
+def build_package(state, truth):
+    """A package for sale next to the field: a new row of three sections, two developed with 3-4 producing wells each
+    and one undeveloped. Rock from the career's grid (its spare row) when it has one, else drawn from the field's rock."""
+    import math
+    import field
+    r = random.Random(f"{state['seed']}|package|{state['month']}")
+    row = max(s["row"] for s in state["sections"]) + 1
+    grid = truth.get("grid")
+    secs, wells = [], []
+    for i in range(3):
+        name = f"{chr(65 + row)}{i + 1}"
+        col = r.randint(0, 5) if i == 0 else (secs[-1]["col"] + 1) % 6
+        base_rock = dict(r.choice(truth["rock"]))
+        if grid and (row + 1) * field.SECTION_FT <= grid["dy"] * (grid["ny"] - 1) + 1:
+            base_rock.update(field.section_rock(grid, col, row))
+        else:
+            base_rock["perm_md"] = round(base_rock["perm_md"] * math.exp(r.gauss(0, 0.35)), 7)
+        rock = dict(base_rock, section=name, col=col, row=row)
+        dev = i < 2
+        secs.append({"section": name, "col": col, "row": row, "rock": rock, "developed": dev})
+        if dev:
+            for k in range(r.randint(3, 4)):
+                wells.append({"id": f"{name}-{k + 1:02d}", "section": name, "lateral_ft": 4620.0, "wells_per_section": r.choice([4, 5]),
+                              "design": dict(r.choice(field.ANALOG_DESIGNS)), "age_months": r.randint(6, 36),
+                              "well_factor": math.exp(r.gauss(0, 0.12)), "noise_seed": r.randint(0, 10 ** 9)})
+    return {"sections": secs, "wells": wells}
+
+
+def merge_package(state, truth, pkg):
+    """A won package joins the field: its sections, its rock (truth) and its producing wells (inherited, with history)."""
+    have = {s["section"] for s in state["sections"]}
+    added = []
+    for s in pkg["sections"]:
+        if s["section"] in have:
+            continue
+        truth["rock"].append(s["rock"])
+        state["sections"].append({"section": s["section"], "col": s["col"], "row": s["row"], "developed": s["developed"]})
+        added.append(s["section"])
+    for w in pkg["wells"]:
+        if w["section"] in added:
+            truth["analogs"].append({k: v for k, v in w.items() if k != "age_months"} | {"online_month": state["month"] - w["age_months"]})
+    return added
 
 
 def add_sections(state, truth, tracts, mg):

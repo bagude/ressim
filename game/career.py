@@ -388,7 +388,12 @@ def check_plan(state, plan):
         if sec not in seen:
             lp = state["locked"][sec]
             pads.insert(0, {"id": sec, "section": sec, "wells": len(lp["wells"]), "typecurve": tcname, "percentile": pct})
-    out = {"design": design, "typecurve": tcname, "percentile": pct, "pads": pads}
+    import emissions
+    try:
+        em = emissions.plan_options(plan)
+    except ValueError as e:
+        raise CareerError(str(e))
+    out = {"design": design, "typecurve": tcname, "percentile": pct, "pads": pads, "emissions": em}
     for k in ("rigs", "crews"):
         v = plan.get(k, 1)
         lo, hi = LIMITS[k]
@@ -413,13 +418,16 @@ def expected_cost_factors(state, y):
     return {k: cf.get(k, 1.0 if decided else career_tasks.STAFF_COST_FACTOR) for k in ("rig", "completion", "facilities")}
 
 
-def belief_well_plan(design, state=None):
+def belief_well_plan(design, state=None, emissions_opts=None):
     """The AFE the plan uses: the design's estimate at the expected contracting costs of the year the pad starts."""
     est = opecon.well_estimate(design)
 
     def wp(pad, i, start_day=None):
         f = expected_cost_factors(state, int((start_day if start_day is not None else state["month"] * MD) // (12 * MD))) if state else \
             {"rig": 1.0, "completion": 1.0, "facilities": 1.0}
+        if (emissions_opts or {}).get("electric_frac"):     # the plan's own choice, so its AFE matches what truth will charge
+            import emissions
+            f = dict(f, completion=f["completion"] * emissions.EFRAC_COMPLETION_FACTOR)
         spread = est["drilling"]["rig_spread_usd"] * f["rig"]
         return {"drill_days": est["drill_days"], "frac_days": est["frac_days"],
                 "drilling_usd": est["drilling_usd"] - est["drilling"]["rig_spread_usd"] + spread,
@@ -432,6 +440,9 @@ def truth_well_plan(state, design):
     est = opecon.well_estimate(design)
     cf = state.get("cost_factors", {}).get(str(state["month"] // 12), {})     # this year's rig and water contracting results
     rig_f, comp_f, fac_f = cf.get("rig", 1.0), cf.get("completion", 1.0), cf.get("facilities", 1.0)
+    import emissions
+    if ((state.get("plan") or {}).get("emissions") or {}).get("electric_frac"):
+        comp_f *= emissions.EFRAC_COMPLETION_FACTOR
 
     def wp(pad, i):
         r = field.rng_for(state["seed"], "exec", pad["id"], i)
@@ -490,7 +501,7 @@ def pop_bands(state, plan, n=60):
         for p in plan["pads"]:
             d, _ = pad_delay(None, None, rng) if p["id"] not in state["locked"] else (0.0, None)
             pads.append(dict(p, delay_days=d))
-        res = schedule.run(pads, plan["rigs"], plan["crews"], belief_well_plan(plan["design"], state), budget=budgets(state, plan),
+        res = schedule.run(pads, plan["rigs"], plan["crews"], belief_well_plan(plan["design"], state, plan.get("emissions")), budget=budgets(state, plan),
                            start_day=state["month"] * MD, locked=locked_for_schedule(state))
         for p in res["pads"]:
             ons.setdefault(p["id"], []).append(p["online"] / MD)
@@ -521,7 +532,7 @@ def evaluate_plan(state, truth, truth_sim, plan):
     fitp = tc["fits"][plan["percentile"]]
     per_ft = tc["per_ft"] or 1000.0
     n_months = state["month"] + FORECAST_MONTHS
-    res = schedule.run(plan["pads"], plan["rigs"], plan["crews"], belief_well_plan(plan["design"], state), budget=budgets(state, plan),
+    res = schedule.run(plan["pads"], plan["rigs"], plan["crews"], belief_well_plan(plan["design"], state, plan.get("emissions")), budget=budgets(state, plan),
                        start_day=now, locked=locked_for_schedule(state))
     lateral = opecon.LATERAL_FT
     well_oil = [v * lateral / per_ft for v in typecurve.curve(fitp)]
@@ -1120,6 +1131,9 @@ def year_review(state, y, truth=None, truth_sim=None):
             parts.update(rparts)
         else:                                   # a career from before reserves: book an opening now, score from next year
             reserves.opening(state, truth, truth_sim)
+    import emissions
+    eparts, em_rec = emissions.year_part(state, y)
+    parts.update(eparts)
     d = sum(parts.values())
     state["board"]["confidence"] = max(0.0, min(100.0, state["board"]["confidence"] + d))
     fcf = sum(h["op_cash_usd"][i] - h["capex_usd"][i] for i in idx)
@@ -1129,6 +1143,8 @@ def year_review(state, y, truth=None, truth_sim=None):
     state["shareholder_returns_usd"] += payout
     rev = {"year": y + 1, "oil_bbl": oil, "free_cash_flow_usd": fcf, "shareholder_return_usd": payout, "guidance_bbl": guide, "capex_usd": capex, "approved_usd": appr,
            "production_ratio": r, "capex_ratio": c, "confidence_change": d, "parts": parts, "confidence": state["board"]["confidence"]}
+    if em_rec:
+        rev["emissions"] = em_rec
     if res_rec:
         rev["reserves"] = {k: res_rec.get(k) for k in ("proved_bbl", "pdp_bbl", "pdnp_bbl", "pud_bbl", "reserve_replacement",
                                                        "audit_developed_bbl", "audit_over_pct", "roll_forward")}
@@ -1235,6 +1251,10 @@ def step_month(state, truth, truth_sim):
         p["actual_usd"] = sum(e[1] for e in p["capex_events"])
         p["belief_well_oil"] = belief_well_oil(state, plan, p["id"])
         state["locked"][p["id"]] = p
+        if (plan.get("emissions") or {}).get("vru"):
+            import emissions
+            p["vru"] = True
+            career_tasks.add_cost(state, p["online"], emissions.VRU_USD_PAD, f"vapour recovery pad {p['id']}")
         dly, why = pad_delay(state["seed"], p["id"])
         if dly:
             inbox(state, "operations", f"Pad {p['id']} started {dly:.0f} days late", f"Cause: {why}. Its wells come on later than planned.",
@@ -1285,6 +1305,13 @@ def step_month(state, truth, truth_sim):
               {"pad": p["id"], "wells": [w["id"] for w in state["wells"] if w["pad"] == p["id"]], "rig": p["rig"],
                "online_month": round(p["online"] / MD, 2), "afe_usd": p["afe_usd"]})
         career_tasks.on_lock(state, truth, p, next((q for q in plan["pads"] if q["id"] == p["id"]), {}), ctx)
+        if truth.get("grid"):                         # parent-child interference (simulated) for edge wells next to producers
+            import interference
+            try:
+                for note in interference.apply_on_lock(state, truth, truth_sim, p):
+                    inbox(state, "operations", f"Pad {p['id']}: parent-child interference", note, {"pad": p["id"]})
+            except Exception as e:  # noqa: BLE001  a failed interference run must not stop the month
+                inbox(state, "operations", f"Pad {p['id']}: interference not simulated", str(e)[:200], {"pad": p["id"]})
         over = p["actual_usd"] / p["afe_usd"] - 1.0
         if over > 0.10:
             inbox(state, "finance", f"Supplemental AFE: pad {p['id']}",
@@ -1360,6 +1387,12 @@ def step_month(state, truth, truth_sim):
     wti = career_tasks.price_at(state, truth, m)
     deck = dict(opecon.PRICE_DECK, oil_usd_bbl=wti)
     op = opecon.net_cash(oil, gas, water, producing, deck=deck)["net_usd"]
+    import emissions
+    co2, _ = emissions.month(state, t0, t1, gas, producing)
+    op -= co2 * emissions.CARBON_USD_T                        # carbon price on everything emitted
+    arr = state["history"].setdefault("co2e_t", [])
+    arr.extend([None] * (len(state["history"]["month"]) - len(arr)))
+    arr.append(round(co2, 1))
     hedge = career_tasks.hedge_settlement(state, m, wti)
     op += hedge
     for key in ("wti_usd_bbl", "hedge_usd"):
@@ -1496,6 +1529,12 @@ def view(state):
     s["sack_below"] = SACK_BELOW
     import reserves
     s["reserves"] = reserves.view(state)
+    import emissions
+    co = [x for x in (state["history"].get("co2e_t") or [])]
+    s["emissions"] = {"carbon_usd_t": emissions.CARBON_USD_T, "target_kg_boe": round(emissions.target_kg_boe(state["month"] // 12), 2),
+                      "factors": emissions.F, "electric_frac_completion_factor": emissions.EFRAC_COMPLETION_FACTOR,
+                      "vru_usd_pad": emissions.VRU_USD_PAD, "co2e_t_ytd": round(sum(x or 0 for x in co[-(state["month"] % 12 or 12):])) if co else 0,
+                      "notes": emissions.NOTES}
     s["geology"] = {"sections": state.get("geology", []), "noise": field.MAP_NOISE,
                     "note": "The geologist's map: estimates from logs, cores and seismic, scattered around the true rock "
                             "(thickness about ±8 %, permeability about ±30 %, porosity ±0.006)."}

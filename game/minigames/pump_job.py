@@ -31,6 +31,11 @@ NOTES = [
     "only the bank inside the pay conducts, so thin fluids and big grains lose sand below the pay. Packing (screen-out) "
     "is reported but the flow model does not feel it. The game charges a cleanout when packing occurs.",
     "A height runaway (the barriers cannot hold the net pressure) loses the stage in this game; the model stops there.",
+    "Minifrac: a simulated DFIT (fracture closes on its leak-off, then the exact after-closure response) read with the "
+    "standard G-function and after-closure analysis. Closure and pore pressure match the synthetic record by "
+    "construction (it is built from the same laws the analysis fits; real records are not this clean). Leak-off and "
+    "permeability from leak-off depend on which part of the decline is fitted: a factor-of-two number either way. "
+    "No wellbore storage or near-wellbore friction. The barrier stress estimate is a game rule.",
     "Clusters: several fractures per stage share the wellbore pressure; the fluid split is solved with perforation friction "
     "and the stress shadow between neighbours (ressim multifrac). Few shots per cluster (limited entry) evens the split "
     "at the cost of friction, which the game charges as pumping horsepower. Surface treating pressure is still not modelled.",
@@ -71,7 +76,7 @@ class PumpJob(base.Game):
         v = {"phase": state["phase"], "rock": state["known"], "stage_spacing_ft": STAGE_SPACING_FT, "well_spacing_ft": WELL_SPACING_FT,
              "stages_per_well": stages_per_well(), "lateral_ft": opecon.LATERAL_FT, "fluids": FLUIDS, "sands_mm": SANDS,
              "sand_usd_lb": SAND_USD_LB, "spent_usd": state["spent_usd"]}
-        for k in ("job", "growth", "production", "economics"):
+        for k in ("job", "growth", "production", "economics", "dfit"):
             if k in state:
                 v[k] = state[k]
         if (state.get("growth") or {}).get("clusters"):
@@ -127,10 +132,34 @@ class PumpJob(base.Game):
         if action == "minifrac":
             r = base.rng(state, "minifrac")
             state["spent_usd"] += MINIFRAC_USD
-            state["known"]["minifrac"] = {"barrier_psi": round(t["barrier_psi"] * r.uniform(0.96, 1.04), 0),
-                                         "leakoff_ft_sqrtmin": round(t["leakoff_ft_sqrtmin"] * r.uniform(0.9, 1.1), 5)}
-            return [f"Minifrac: barrier stress contrast about {state['known']['minifrac']['barrier_psi']:.0f} psi, "
-                    f"leak-off about {state['known']['minifrac']['leakoff_ft_sqrtmin']:.4f} ft/√min."]
+            mf = {"barrier_psi": round(t["barrier_psi"] * r.uniform(0.96, 1.04), 0),
+                  "leakoff_ft_sqrtmin": round(t["leakoff_ft_sqrtmin"] * r.uniform(0.9, 1.1), 5)}
+            try:                                   # f7's synthetic DFIT and the textbook analysis of it
+                d = ctx.call("dfit", {"pay_ft": t["pay_ft"], "youngs_psi": t["youngs_psi"], "rate_bpm": 5.0, "pump_minutes": 5.0,
+                                      "falloff_hours": 72.0, "closure_psi": t["closure_psi"] + 5000.0, "reservoir_psi": 5000.0,
+                                      "perm_md": t["perm_md"], "porosity": 0.08, "total_compressibility": 1.64e-5,
+                                      "reservoir_viscosity_cp": 0.55}, "dfit")
+            except base.GameError:
+                raise
+            except Exception:  # noqa: BLE001  the worker cannot run it: fall back to the game-rule estimates
+                d = None
+            if d and not d.get("failed"):
+                a = d["analysis"]
+                bias = (a.get("leakoff_ft_sqrtmin") or 0) / max(1e-12, d["leakoff_ft_sqrtmin"])
+                mf.update(leakoff_ft_sqrtmin=round(t["leakoff_ft_sqrtmin"] * bias, 5) if bias > 0 else mf["leakoff_ft_sqrtmin"],
+                          closure_psi=round(a["closure_psi"]), pore_pressure_psi=round(a["pore_pressure_psi"]) if a.get("pore_pressure_psi") else None,
+                          perm_md_from_leakoff=a.get("perm_md_from_leakoff"), efficiency=a.get("efficiency"),
+                          radial_reached=a.get("radial_reached"), source="DFIT (simulated) and the standard G-function / after-closure analysis")
+                state["dfit"] = {"minutes": d["minutes"], "pressure_psi": d["pressure_psi"], "G": a["G"], "dPdG": a["dPdG"], "GdPdG": a["GdPdG"],
+                                 "isip_psi": a.get("isip_psi"), "closure_G": a.get("closure_G"), "closure_minutes": a.get("closure_minutes")}
+            elif d:
+                mf["note"] = "the DFIT did not close within 72 hours (rock too tight for the test); estimates from the pump-in only"
+            state["known"]["minifrac"] = mf
+            msg = (f"Minifrac: barrier stress contrast about {mf['barrier_psi']:.0f} psi, leak-off about {mf['leakoff_ft_sqrtmin']:.4f} ft/√min.")
+            if mf.get("closure_psi"):
+                msg += (f" DFIT: closure {mf['closure_psi']:,} psi, pore pressure {mf['pore_pressure_psi'] or 0:,} psi, "
+                        f"permeability from leak-off about {mf['perm_md_from_leakoff'] or 0:.4f} md (a factor-of-two number; it depends on the fit).")
+            return [msg]
         if action != "pump":
             raise base.GameError("unknown action")
         job = check_job(args, career=state.get("career", False))
