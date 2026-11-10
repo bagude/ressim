@@ -123,7 +123,7 @@ function meetingSteps() {
   const last = (C.board.reviews || []).at(-1);
   return [
     ...(last && !first ? [{ done: C.workflow ? C.workflow.steps?.find(x => x.key === 'lookback')?.status === 'done' : keep.get(`readReview${last.year}`, false), tab: 'diag', cta: 'Open Diagnostics', title: `Read the year ${last.year} review`,
-      why: `The board moved your confidence ${last.confidence_change >= 0 ? '+' : '−'}${num(Math.abs(last.confidence_change), 1)}: ${worstParts(last)}. Read the pad report cards and Diagnostics: was the miss your type curve or the execution?` }] : []),
+      why: `The board moved your confidence ${last.confidence_change >= 0 ? '+' : '−'}${num(Math.abs(last.confidence_change), 1)}${worstParts(last) === 'nothing cost you' ? '' : `: ${worstParts(last)}`}. ${last.confidence_change < 0 ? 'Read the pad report cards and Diagnostics: was the miss your type curve or the execution?' : 'Read the pad report cards: if the rock beat your type curve, raise the curve now, or the extra oil will count as sandbagging next year.'}` }] : []),
     { done: maps > 0, optional: true, tab: 'maps', cta: 'Map the rock', title: 'Map the rock (optional, recommended)',
       why: 'Pick tops on the old vertical wells, map net pay and HCPV, and save the interpretation. The type curve can then scale each pad to the rock under it, instead of one field-wide average.' },
     { done: tcs > 0, tab: 'typecurve', cta: 'Next: build a type curve', title: first ? 'Build a type curve' : 'Rebuild the type curve with this year’s data',
@@ -886,7 +886,7 @@ function revisionPanel(v) {
   bud.value = ((rev.budget_usd ?? v.approved_usd) / 1e6).toFixed(1);
   bud.addEventListener('change', () => { rev.budget_usd = Math.max(0, +bud.value) * 1e6; schedulePlan(); });
   const tw = (a, b, f) => Math.abs((a ?? b) - b) > 1 ? h('span', {}, h('s', { title: 'the original promise' }, f(a)), ' ', f(b)) : h('span', {}, f(b));
-  box.append(
+  box.append(...[
     h('h3', {}, `Revise the year ${v.year} plan`),
     h('p', { class: 'hint' }, 'Change unstarted pads, the design, rigs and crews inside the approved budget for free. Telling the board early that you will miss costs less than missing at year end; asking for more money costs confidence.'),
     h('div', { class: 'rev-grid' },
@@ -906,7 +906,7 @@ function revisionPanel(v) {
       ...(cc >= 0 ? [] : [h('small', {}, [v.guidance_confidence ? `guidance ${num(v.guidance_confidence, 1)}` : null, v.budget_confidence ? `budget ${num(v.budget_confidence, 1)}` : null].filter(Boolean).join(', '))]),
       ...(v.allowed ? [h('button', { type: 'button', class: 'board-go', onclick: (e) => applyRevision(e.currentTarget) }, changed ? 'Take the revision to the board' : 'Apply plan changes')] : [])),
     ...(v.allowed ? [] : [h('p', { class: 'bad' }, (v.reasons || []).join(' '))]),
-    h('p', { class: 'hint', id: 'rev-msg' }, revDone));
+    h('p', { class: 'hint', id: 'rev-msg' }, revDone)].filter(Boolean));
   revDone = '';
   return box;
 }
