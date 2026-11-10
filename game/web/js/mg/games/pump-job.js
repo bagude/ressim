@@ -9,6 +9,9 @@ import { h, num, usd, sv } from '../ui.js';
 import { multiChart, COLORS } from '../../career/charts2.js';
 import { plot } from '../plots.js';
 
+// the player's own closure pick on the DFIT, kept across re-renders of the same test; the truth stays hidden until it is placed
+const PICKS = new Map();
+const interp = (xs, ys, x) => { if (x == null || !xs?.length) return null; let i = xs.findIndex(v => v >= x); if (i <= 0) return ys[Math.max(0, i)]; const f = (x - xs[i - 1]) / ((xs[i] - xs[i - 1]) || 1); return ys[i - 1] + f * (ys[i] - ys[i - 1]); };
 const ALARM = { height_runaway: 'Height runaway: the fracture grew through a barrier', screen_out: 'Screen-out: proppant packed off and the job stopped early' };
 
 export function render(v, host, S0 = {}) {
@@ -23,21 +26,7 @@ export function render(v, host, S0 = {}) {
   drawSketch(sk, v);
   if (v.clusters?.length) top.append(clusterCard(v));
   top.append(rockCard(v));
-  if (v.dfit?.G?.length) {   // the minifrac is a real DFIT: the G-function plots that pick closure
-    const D0 = v.dfit, gc = D0.closure_G;
-    // zoom to the closure event (about four times the closure G), and plot the derivatives' magnitudes as analysts do
-    const gMax = gc != null ? Math.max(gc * 4, 2) : Math.max(...D0.G), keep = D0.G.map((g, i) => g <= gMax ? i : -1).filter(i => i >= 0);
-    const pick = (a) => keep.map(i => a[i]);
-    const D = { ...D0, G: pick(D0.G), pressure_psi: pick(D0.pressure_psi), GdPdG: pick(D0.GdPdG).map(x => Math.abs(x)), dPdG: pick(D0.dPdG).map(x => Math.abs(x)) };
-    top.append(plot({ title: 'DFIT: pressure against G-function time', xl: 'G', yl: 'psi', W: 520, H: 250, series: [{ name: 'Pressure', x: D.G, y: D.pressure_psi, color: COLORS.dev }],
-      vx: gc != null ? [{ x: gc, label: 'closure' }] : [], note: `ISIP ${num(D.isip_psi)} psi. After shut-in the fracture leaks off and closes; G is the time function that makes normal leak-off a straight line.` }));
-    // the first few points after shut-in spike (no wellbore storage in the model): scale from the rest so the line reads
-    const yTop = gc != null ? 1.25 * Math.max(...D.G.map((g, i) => (g >= 0.2 * gc ? Math.max(D.GdPdG[i], D.dPdG[i]) : 0))) : null;
-    top.append(plot({ title: 'DFIT: the superposition derivative, −G·dP/dG', xl: 'G', yl: 'psi', W: 520, H: 250, ...(yTop > 0 ? { yMin: 0, yMax: yTop } : {}),
-      series: [{ name: '−G·dP/dG', x: D.G, y: D.GdPdG, color: COLORS.pdp }, { name: '−dP/dG', x: D.G, y: D.dPdG, color: '#b7678f', dash: true }],
-      vx: gc != null ? [{ x: gc, label: `closure, ${num(D.closure_minutes)} min` }] : [],
-      note: `Zoomed to G ≤ ${num(gMax, 1)}. While the fracture is open −G·dP/dG rises on a straight line through the origin; at closure it kinks (marked). Here it bends up, because the closed fracture is stiffer than the open one, which is the signature the compliance method reads. Simplified: closure is sharp (the walls touch all at once; real records are rarely this clear), there is no wellbore storage or friction in the first minutes, and no radial flow, so the test gives no kh. Leak-off and permeability read from the test also depend on the fracture height assumed: here the analysis is given the test fracture’s own height, which in the field is not known.` }));
-  }
+  if (v.dfit?.G?.length) top.append(...dfitCards(v.dfit));
   const S = v.series || {}, t = S.t_min || [];
   if (t.length) {
     const charts = [
@@ -106,7 +95,7 @@ function rockCard(v) {
     h('dt', {}, mf?.pore_pressure_psi != null ? 'Closure stress above pore pressure' : 'Closure stress'), h('dd', {}, r.closure_psi != null ? `${num(r.closure_psi)} psi` : '–'),
     h('dt', {}, 'Leak-off'), h('dd', {}, mf ? `${num(mf.leakoff_ft_sqrtmin, 4)} ft/√min (minifrac)` : r.leakoff_ft_sqrtmin_estimate != null ? `about ${num(r.leakoff_ft_sqrtmin_estimate, 4)} ft/√min` : '–'),
     h('dt', {}, "Young's modulus"), h('dd', {}, r.youngs_psi != null ? `${num(r.youngs_psi / 1e6, 2)} MM psi` : '–'),
-    ...(mf?.closure_psi != null ? [h('dt', {}, 'Closure stress, absolute (DFIT)'), h('dd', {}, `${num(mf.closure_psi)} psi`)] : []),
+    ...(mf?.closure_psi != null ? [h('dt', {}, 'Closure stress, absolute (DFIT, stiffening pick)'), h('dd', {}, `${num(mf.closure_psi)} psi`)] : []),
     ...(mf?.pore_pressure_psi != null ? [h('dt', {}, 'Pore pressure (after closure)'), h('dd', {}, `${num(mf.pore_pressure_psi)} psi`)] : []),
     ...(mf?.perm_md_from_leakoff != null ? [h('dt', {}, 'Permeability from leak-off'), h('dd', {}, `${(+mf.perm_md_from_leakoff).toPrecision(2)} md`)] : []),
     ...(mf?.efficiency != null ? [h('dt', {}, 'Fluid efficiency (DFIT)'), h('dd', {}, `${num(mf.efficiency * 100)}%`)] : [])),
@@ -184,4 +173,58 @@ export function result(R, box, S) {
   if (E) box.append(h('dl', { class: 'kv' }, h('dt', {}, 'NPV10'), h('dd', {}, usd(E.npv10_usd)), h('dt', {}, 'IRR'), h('dd', {}, E.irr == null ? '–' : `${num(E.irr * 100)}%`),
     h('dt', {}, 'Payout'), h('dd', {}, E.payout_month == null ? 'never' : `${E.payout_month} months`), h('dt', {}, 'Stage cost'), h('dd', {}, usd(E.stage_cost_usd))),
     h('p', { class: 'hint' }, 'Stars compare your NPV with the company’s standard slickwater design in the same rock. Relative score = 1 + (yours − standard) ÷ the larger of |standard| and $2 MM, so it works even when the standard loses money.'));
+}
+
+// The DFIT: pressure and the superposition derivative against G, and the player's own closure pick. The test's truth
+// (first contact and the closure stress) arrives with the record; it stays hidden until the player has placed a pick.
+function dfitCards(D0) {
+  const key = `${D0.isip_psi}|${D0.closure_minutes}`, st = PICKS.get(key) || { g: null, shown: false }; PICKS.set(key, st);
+  const gc = D0.closure_G, T = D0.truth || {};
+  const gOf = (min) => interp(D0.minutes, D0.G, min), pOf = (g) => interp(D0.G, D0.pressure_psi, g);
+  const gTrue = gOf(T.closure_minutes), gContact = D0.contact_minutes != null ? gOf(D0.contact_minutes) : null;
+  const gradual = (T.contact_psi || 0) > 0 && gContact != null;
+  // zoom to the closure event (three times the analysis's pick: the truth must not set the window), and plot the derivatives' magnitudes as analysts do
+  const gRef = gc || 0, gMax = gRef > 0 ? Math.max(gRef * 3, 2) : Math.max(...D0.G);
+  const keep = D0.G.map((g, i) => g <= gMax ? i : -1).filter(i => i >= 0), pick = (a) => keep.map(i => a[i]);
+  const D = { G: pick(D0.G), pressure_psi: pick(D0.pressure_psi), GdPdG: pick(D0.GdPdG).map(x => Math.abs(x)), dPdG: pick(D0.dPdG).map(x => Math.abs(x)) };
+  const marks = () => [
+    st.g != null ? { x: st.g, label: 'your pick', color: '#e7c66b' } : null,
+    ...(st.shown ? [gc != null ? { x: gc, label: 'stiffening pick', row: 1 } : null,
+      gradual ? { x: gContact, label: 'first contact', row: 2 } : null,
+      gTrue != null ? { x: gTrue, label: 'true closure', row: 3, color: '#8fd193' } : null] : [])].filter(Boolean);
+  const yTop = gRef > 0 ? 1.25 * Math.max(...D.G.map((g, i) => (g >= 0.2 * gRef ? Math.max(D.GdPdG[i], D.dPdG[i]) : 0))) : null;
+  const slot1 = h('div', { class: 'views-slot' }), slot2 = h('div', { class: 'views-slot' });
+  const draw = () => {
+    slot1.replaceChildren(plot({ title: 'DFIT: pressure against G-function time', xl: 'G', yl: 'psi', W: 520, H: 250, series: [{ name: 'Pressure', x: D.G, y: D.pressure_psi, color: COLORS.dev }],
+      vx: marks(), note: `ISIP ${num(D0.isip_psi)} psi. After shut-in the fracture leaks off and closes; G is the time function that makes normal leak-off a straight line.` }));
+    slot2.replaceChildren(plot({ title: 'DFIT: the superposition derivative, −G·dP/dG', xl: 'G', yl: 'psi', W: 520, H: 250, ...(yTop > 0 ? { yMin: 0, yMax: yTop } : {}),
+      series: [{ name: '−G·dP/dG', x: D.G, y: D.GdPdG, color: COLORS.pdp }, { name: '−dP/dG', x: D.G, y: D.dPdG, color: '#b7678f', dash: true }],
+      vx: marks(),
+      note: `Zoomed to G ≤ ${num(gMax, 1)}. While the fracture is open −G·dP/dG rises on a straight line through the origin; where the walls close it departs from that line and bends up, because a closed fracture is stiffer than an open one. ${gradual ? 'Here the walls are rough: they touch first at the asperities and close over a band of pressure, so the departure is a bend, not a kink.' : 'This test closed sharply (the walls touched all at once), so the departure is a kink; real records are rarely this clear.'} Simplified: no wellbore storage or friction in the first minutes, and no radial flow, so the test gives no kh. Leak-off and permeability read from the test also depend on the fracture height assumed: here the analysis is given the test fracture’s own height, which in the field is not known.` }));
+  };
+  draw();
+  // the pick: a slider along G (keyboard friendly), live pressure readout, then the reveal
+  const rng = h('input', { type: 'range', min: 0, max: gMax, step: gMax / 500, 'aria-label': 'Your closure pick, G' }); rng.value = st.g ?? gMax / 2;
+  const out = h('output', {}), res = h('div', {});
+  const say = () => { const g = Number(rng.value); out.textContent = `G ${num(g, 2)}, ${num(interp(D0.G, D0.minutes, g), 1)} min, ${num(pOf(g))} psi`; };
+  rng.addEventListener('input', () => { st.g = Number(rng.value); say(); draw(); if (st.shown) result(); });
+  const go = h('button', { type: 'button', class: 'small-btn do' }, 'Check my pick');
+  go.addEventListener('click', () => { if (st.g == null) st.g = Number(rng.value); st.shown = true; draw(); result(); go.hidden = true; });
+  function result() {
+    const pT = T.closure_psi ?? pOf(gTrue), row = (name, g, p, note) => h('tr', {}, h('td', {}, name), h('td', {}, g == null ? '–' : num(g, 2)), h('td', {}, p == null ? '–' : num(p)),
+      h('td', p != null && pT != null && Math.abs(p - pT) > 25 ? { class: 'bad' } : {}, p == null || pT == null ? '–' : `${p - pT >= 0 ? '+' : '−'}${num(Math.abs(p - pT))}`), h('td', { class: 'hint' }, note || ''));
+    const pYou = pOf(st.g), pStiff = gc != null ? pOf(gc) : null, pFirst = gradual ? pOf(gContact) : null;
+    res.replaceChildren(h('table', { class: 'data' }, h('thead', {}, h('tr', {}, ...['', 'G', 'Pressure, psi', 'Against the closure stress', ''].map(x => h('th', {}, x)))),
+      h('tbody', {}, row('Your pick', st.g, pYou), row('Stiffening (compliance) pick', gc, pStiff, 'the analysis the job design uses'),
+        gradual ? row('First contact', gContact, pFirst, `the walls start touching ${num(T.contact_psi)} psi above the closure stress`) : null,
+        row('True closure stress', gTrue, pT, 'the minimum stress in the rock'))),
+      h('p', { class: 'hint' }, gradual
+        ? `This rock’s fracture walls are rough, so they close over a ${num(T.contact_psi)} psi band. The stiffening method picks where the record first stiffens, inside that band and toward first contact, so it reads above the minimum stress. That is the standing argument between the closure-pick methods: tangent-line picks tend to read later and lower, compliance picks earlier and higher, and on rough walls the stress itself lies somewhere in the band.`
+        : 'The walls touched all at once on this test, so the stiffening pick and the true closure stress agree to within the record’s time step. Another test of the same rock may close gradually.'));
+  }
+  say(); if (st.shown) { result(); go.hidden = true; }
+  const card = h('div', { class: 'panel-card' }, h('h2', {}, 'Pick closure yourself'),
+    h('p', { class: 'hint' }, 'Slide the line to where you read closure on the derivative plot: where −G·dP/dG leaves its straight line through the origin. Then check it against the stress this test was built with.'),
+    h('label', { class: 'mlbl' }, 'Your pick ', rng, ' ', out), ' ', go, res);
+  return [slot1, slot2, card];
 }

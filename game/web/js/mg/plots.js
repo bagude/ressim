@@ -32,7 +32,10 @@ export function plot(o) {
   for (const v of ticks(b0, b1, o.logY)) { sv('line', { x1: m.l, x2: W - m.r, y1: Y(v), y2: Y(v), class: 'grid' }, s); sv('text', { x: m.l - 5, y: Y(v) + 3, 'text-anchor': 'end' }, s).textContent = fmt(v); }
   sv('text', { x: (W - m.r + m.l) / 2, y: H - 4, 'text-anchor': 'middle', class: 'axl' }, s).textContent = o.xl || '';
   sv('text', { x: 11, y: (H - m.b + m.t) / 2, transform: `rotate(-90 11 ${(H - m.b + m.t) / 2})`, 'text-anchor': 'middle', class: 'axl' }, s).textContent = o.yl || '';
-  for (const v of o.vx || []) if (v.x != null) { sv('line', { x1: X(v.x), x2: X(v.x), y1: m.t, y2: H - m.b, class: 'mark' }, s); if (v.label) sv('text', { x: X(v.x) + 4, y: m.t + 11, class: 'markl' }, s).textContent = v.label; }
+  for (const v of o.vx || []) if (v.x != null) {   // several marks: each label on its own row (v.row), optional stroke colour
+    sv('line', { x1: X(v.x), x2: X(v.x), y1: m.t, y2: H - m.b, class: 'mark', ...(v.color ? { style: `stroke:${v.color};stroke-dasharray:none` } : {}) }, s);
+    if (v.label) { const lx = X(v.x), right = lx > W - m.r - 90; sv('text', { x: right ? lx - 4 : lx + 4, y: m.t + 11 + 12 * (v.row || 0), class: 'markl', 'text-anchor': right ? 'end' : 'start' }, s).textContent = v.label; }
+  }
   for (const v of o.hy || []) if (v.y != null) { sv('line', { x1: m.l, x2: W - m.r, y1: Y(v.y), y2: Y(v.y), class: 'mark' }, s); if (v.label) sv('text', { x: m.l + 4, y: Y(v.y) - 4, class: 'markl' }, s).textContent = v.label; }
   const ends = [], clip = `clip${Math.random().toString(36).slice(2, 8)}`;   // series stay inside the axes when a range is capped
   sv('rect', { x: m.l, y: m.t, width: W - m.l - m.r, height: H - m.t - m.b }, sv('clipPath', { id: clip }, sv('defs', {}, s)));
