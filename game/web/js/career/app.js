@@ -58,6 +58,12 @@ async function landing() {
   });
 }
 
+function showApp() {   // undo what waitGenerated hid
+  $('landing').hidden = true; $('app').hidden = false; $('gen').hidden = true;
+  for (const el of ['clock', 'adv1', 'advY']) $(el).hidden = false;
+  document.querySelectorAll('.kpi').forEach(k => { k.hidden = false; });
+  renderBar();
+}
 async function waitGenerated(id) {
   $('landing').hidden = false; $('app').hidden = true;
   for (const el of ['clock', 'adv1', 'advY']) $(el).hidden = true;
@@ -98,12 +104,18 @@ const SACK = () => C.sack_below ?? C.projection?.sack_below ?? 20;
 
 // ------------------------------------------------------------------ the budget meeting, step by step
 function meetingSteps() {
-  const tcs = Object.keys(C.typecurves || {}).length, pads = (draft || keep.get('draft', null))?.pads?.length || 0;
-  const first = C.year === 1;
+  const y0 = (C.year - 1) * 12, first = C.year === 1, pads = (draft || keep.get('draft', null))?.pads?.length || 0;
+  const tcs = Object.values(C.typecurves || {}).filter(t => (t.created_month ?? 0) >= y0).length;
+  const maps = Object.values(C.geomodels || {}).filter(m => (m.month ?? m.created_month ?? +(String(m.name).match(/month (\d+)/)?.[1] ?? -1)) >= y0).length;
+  const last = (C.board.reviews || []).at(-1);
   return [
-    { done: tcs > 0, tab: 'typecurve', cta: 'Next: build a type curve', title: 'Build a type curve',
+    ...(last && !first ? [{ done: keep.get(`readReview${last.year}`, false), tab: 'diag', cta: 'Open Diagnostics', title: `Read the year ${last.year} review`,
+      why: `The board moved your confidence ${last.confidence_change >= 0 ? '+' : '−'}${num(Math.abs(last.confidence_change), 1)}: ${worstParts(last)}. Read the pad report cards and Diagnostics: was the miss your type curve or the execution?` }] : []),
+    { done: maps > 0, optional: true, tab: 'maps', cta: 'Map the rock', title: 'Map the rock (optional, recommended)',
+      why: 'Pick tops on the old vertical wells, map net pay and HCPV, and save the interpretation. The type curve can then scale each pad to the rock under it, instead of one field-wide average.' },
+    { done: tcs > 0, tab: 'typecurve', cta: 'Next: build a type curve', title: first ? 'Build a type curve' : 'Rebuild the type curve with this year’s data',
       why: 'It is your forecast of what a new well will produce, drawn from the wells you can see. The board holds you to it: too optimistic and you miss guidance; too cautious and you may beat it by more than 10%, which the board calls sandbagging.' },
-    { done: pads > 0 || !!C.plan, tab: 'plan', cta: 'Next: plan your pads', title: first ? 'Plan your first pads' : 'Plan this year\'s pads',
+    { done: pads > 0 || (first && !!C.plan), tab: 'plan', cta: 'Next: plan your pads', title: first ? 'Plan your first pads' : 'Plan this year\'s pads',
       why: 'Pick open sections and how to drill and frack them. More pads means more oil and a bigger promise, at a bigger cost. The board wants growth of at least 5% over what is already producing.' },
     { done: !C.budget_needed, tab: 'board', cta: 'Go to the board meeting', title: 'Win the budget',
       why: 'Ask for enough money to fund the pads you want this year, and commit to an oil volume (your guidance). That volume is what the year-end review scores.' },
@@ -111,7 +123,13 @@ function meetingSteps() {
       why: 'Continue runs month by month until something needs you: a job to play, a pad coming online, a warning.' },
   ];
 }
-function nextStep() { return C.budget_needed ? meetingSteps().find(s => !s.done && s.tab) : null; }
+function nextStep() { return C.budget_needed ? meetingSteps().find(s => !s.done && s.tab && !s.optional) : null; }
+// the review parts that cost the most, in words
+const PART_LABEL = { production_vs_guidance: 'production against guidance', sandbagging: 'sandbagging', capex_vs_budget: 'capex against budget', delivered_both: 'delivered both', reserve_replacement: 'reserve replacement', reserve_revisions: 'reserve revisions', reserves_audit: 'reserves audit', emissions_intensity: 'emissions intensity' };
+function worstParts(rv, n = 3) {
+  const P = Object.entries(rv.parts || {}).filter(([, v]) => v < -0.05).sort((a, b) => a[1] - b[1]).slice(0, n);
+  return P.length ? P.map(([k, v]) => `${PART_LABEL[k] || k} −${num(-v, 1)}`).join(', ') : 'nothing cost you';
+}
 
 // ------------------------------------------------------------------ top bar
 function renderBar() {
@@ -133,7 +151,7 @@ function renderBar() {
   $('adv1').title = running ? 'Stop after this month' : 'Runs month by month until something needs you';
   // Continue names the real next step: the board meeting, a well to steer, a blocking minigame task, or the next month
   const block = blockingTask();
-  $('adv1').textContent = running ? 'Pause' : done ? 'Career over' : C.budget_needed ? (nextStep()?.cta || 'Go to the board meeting') : pend.length ? `Steer ${pend[0]}` : block ? `Do: ${block.label}` : 'Continue';
+  $('adv1').textContent = running ? 'Pause' : done ? 'Career over' : C.budget_needed ? (tab === 'board' && !nextStep()?.tab?.match(/typecurve|plan/) ? 'Present the plan (below)' : nextStep()?.cta || 'Go to the board meeting') : pend.length ? `Steer ${pend[0]}` : block ? `Do: ${block.label}` : 'Continue';
   if (block) $('advY').disabled = true;
   $('advY').title = C.budget_needed ? 'The board must approve this year’s budget first.' : pend.length ? 'Steer the waiting wells first.' : '';
   const unread = unreadCount();
@@ -375,6 +393,7 @@ function renderTC() {
     const open = C.sections.filter(s => !s.developed && !plan.includes(s.section)).map(s => s.section);
     sel.replaceChildren(h('option', { value: '' }, 'Section…'), ...plan.map(s => h('option', { value: s }, `${s} (planned)`)), ...open.map(s => h('option', { value: s }, s)));
     sel.value = cur || plan[0] || '';
+    const nb = $('tc-near'); nb.disabled = !plan.length; nb.title = plan.length ? '' : 'Add pads to the plan first';   // nothing to be near yet
   }
   previewTC();
 }
@@ -470,12 +489,16 @@ async function fillTcGeo() {
   sel.replaceChildren(h('option', { value: '' }, 'No (per 1,000 ft only)'), ...Object.entries(g?.geomodels || {}).flatMap(([name, m]) =>
     Object.keys(ATTR).filter(a => Object.values(m.sections || {}).some(v => v[a] != null)).map(a => h('option', { value: `${name}|${a}` }, `${name}: ${ATTR[a]}`))));
   sel.value = [...sel.options].some(o => o.value === keepV) ? keepV : '';
-  $('tc-geo-row').hidden = sel.options.length < 2;
+  const none = sel.options.length < 2;
+  $('tc-geo-row').hidden = false; sel.disabled = none;
+  let tip = $('tc-geo-none'); if (!tip) { tip = h('p', { class: 'hint', id: 'tc-geo-none' }, 'Save an interpretation on the ', h('button', { type: 'button', class: 'linkish', onclick: () => setTab('maps') }, 'Maps'), ' tab to scale each pad to the rock under it.'); $('tc-geo-row').append(tip); }
+  tip.hidden = !none;
 }
 function geoNote(r) {
   const el = $('tc-geo-note'); if (!el) return;
   const g = r?.geology;
-  const src = typeof g?.source === 'object' && g.source ? `${g.source.attribute || 'geology'} from “${g.source.geomodel || 'your map'}”` : (g?.source || 'geology');
+  const AL = { hcpv: 'HCPV', net_ft: 'net pay', gross_ft: 'gross thickness', phi: 'porosity', sw: 'water saturation' };
+  const src = typeof g?.source === 'object' && g.source ? `${AL[g.source.attribute] || g.source.attribute || 'geology'} from “${g.source.geomodel || 'your map'}”` : (g?.source || 'geology');
   el.textContent = !g ? '' : `Adjusted for ${src}: production per 1,000 ft scales with the mapped value to the power ${num(g.exponent, 2)} (fit r² ${num(g.r2, 2)} over ${g.n} wells${g.r2 < 0.2 ? '; weak, so the adjustment is small or unreliable' : ''}). Each pad then gets its own factor from your map.`;
 }
 function previewTC() {
@@ -844,7 +867,7 @@ async function evaluatePlan(render = true) {
       ['F&D cost', `$${num(M.fd_usd_boe, 2)}/BOE`]].map(([a, b]) => h('div', {}, h('span', {}, a), h('strong', {}, b))));
   }
   // budget by year, with the request edited in its own row (years up to 5: the career is 5 years)
-  const t = h('table', { class: 'data byyear' }, h('thead', {}, h('tr', {}, ...['Year', 'Planned capex', 'Your request', 'Approved', 'Board limit', 'Oil forecast', 'Operating cash'].map(x => h('th', {}, x)))));
+  const t = h('table', { class: 'data byyear' }, h('thead', {}, h('tr', {}, ...['Year', 'Oil forecast (guidance)', 'Planned capex', 'Your request', 'Approved', 'Board limit', 'Operating cash'].map(x => h('th', {}, x)))));
   const tb = h('tbody');
   for (const y of r.budget_by_year.filter(y => y.year <= 5)) {
     const editable = y.year_index >= C.year - 1 && y.approved_usd == null;
@@ -853,9 +876,11 @@ async function evaluatePlan(render = true) {
     inp.placeholder = (y.planned_capex_usd / 1e6).toFixed(1);
     inp.addEventListener('change', () => { if (inp.value === '') delete draft.budget_request[String(y.year_index)]; else draft.budget_request[String(y.year_index)] = Math.max(0, +inp.value) * 1e6; saveDraft(); schedulePlan(); });
     const over = y.board_limit_usd != null && (y.requested_usd ?? 0) > y.board_limit_usd;
-    tb.append(h('tr', y.year === C.year ? { class: 'now' } : {}, h('td', {}, `Year ${y.year}${y.year === C.year ? ' (now)' : ''}`), h('td', {}, usd(y.planned_capex_usd)),
+    tb.append(h('tr', y.year === C.year ? { class: 'now' } : {}, h('td', {}, `Year ${y.year}${y.year === C.year ? ' (now)' : ''}`),
+      h('td', {}, bbl(y.oil_forecast_bbl), y.oil_forecast_unrisked_bbl != null && Math.abs(y.oil_forecast_unrisked_bbl - y.oil_forecast_bbl) > 1 ? h('small', { class: 'hint', title: 'Before the expected pad delays and parent-child interference' }, ` unrisked ${bbl(y.oil_forecast_unrisked_bbl)}`) : null),
+      h('td', {}, usd(y.planned_capex_usd)),
       h('td', over ? { class: 'bad' } : {}, editable ? h('span', { class: 'req' }, '$', inp, ' MM') : usd(y.requested_usd)),
-      h('td', {}, usd(y.approved_usd)), h('td', {}, y.board_limit_usd != null ? usd(y.board_limit_usd) : ''), h('td', {}, bbl(y.oil_forecast_bbl)), h('td', {}, usd(y.op_cash_forecast_usd))));
+      h('td', {}, usd(y.approved_usd)), h('td', {}, y.board_limit_usd != null ? usd(y.board_limit_usd) : ''), h('td', {}, usd(y.op_cash_forecast_usd))));
   }
   t.append(tb);
   $('plan-years').replaceChildren(h('h2', {}, 'Budget by year'), h('p', { class: 'hint' }, 'Type a request beside planned capex. Empty means none: pads in that year wait.'), h('div', { style: 'overflow-x:auto' }, t));
@@ -871,12 +896,12 @@ async function evaluatePlan(render = true) {
   const pb = h('tbody');
   for (const p of r.pads) pb.append(h('tr', {}, h('td', {}, p.pad + (p.started ? ' (locked)' : '')), h('td', {}, String(p.wells)), h('td', {}, num(p.well_spacing_ft)),
     h('td', {}, `${p.typecurve} ${p.percentile.toUpperCase()}`), h('td', {}, p.online_month == null ? 'unscheduled'
-      : p.online_month_p90 != null && Math.round(p.online_month_p90) > Math.round(p.online_month_p10) ? h('span', {}, monthName(p.online_month_p50 ?? p.online_month), h('small', { class: 'pop' }, ` likely ${monthName(p.online_month_p10)} to ${monthName(p.online_month_p90)}`))
+      : p.online_month_p90 != null && monthName(p.online_month_p90) !== monthName(p.online_month_p10) ? h('span', {}, monthName(p.online_month_p50 ?? p.online_month), h('small', { class: 'pop' }, ` likely ${monthName(p.online_month_p10)} to ${monthName(p.online_month_p90)}`))
       : monthName(p.online_month)),
     h('td', {}, usd(p.capex_usd)), h('td', p.npv10_usd < 0 ? { class: 'bad' } : {}, usd(p.npv10_usd)), h('td', {}, num(p.pvi, 2)), h('td', {}, p.irr == null ? '–' : pct(p.irr))));
   pt.append(pb);
-  $('plan-pads').replaceChildren(h('h2', {}, 'Pad economics'), pt,
-    r.pads.some(p => p.online_month_p90 != null) ? h('p', { class: 'hint' }, 'Online: the planned month, and the range it will likely fall in. About a quarter of pads start 7 to 40 days late (permits, weather, a late frac crew, pad construction); the odds are known, the draws are not.') : null);
+  $('plan-pads').replaceChildren(...[h('h2', {}, 'Pad economics'), r.pads.length ? h('div', { style: 'overflow-x:auto' }, pt) : h('p', { class: 'hint' }, 'No pads yet: pick a section on the map below to add one.'),
+    r.pads.some(p => p.online_month_p90 != null) ? h('p', { class: 'hint' }, 'Online: the planned month, and the range it will likely fall in. About a quarter of pads start 7 to 40 days late (permits, weather, a late frac crew, pad construction); the odds are known, the draws are not.') : null].filter(Boolean));
   renderScenarios();
   const A = r.afe_estimate_per_well;
   $('plan-afe').replaceChildren(h('h2', {}, `AFE estimate per well: ${usd(A.total_usd)}`), h('p', { class: 'hint' },
@@ -951,7 +976,12 @@ async function renderBoard() {
       const r = await call('/api/career/budget', { id: C.id, plan: draft });
       if (!r.ok && !r.decision) { lastDecision = { approved: false, reasons: r.errors }; }
       else { lastDecision = r.decision; if (r.career) C = r.career; }
-      if (lastDecision.approved) { draft = null; keep.set('draft', null); planRes = null; }
+      if (lastDecision.approved) {
+        draft = null; keep.set('draft', null); planRes = null;
+        const f = await call(`/api/career?id=${C.id}`);
+        if (f.ok) C = f.career.status === 'generating' ? (await waitGenerated(C.id)) || C : f.career;
+        showApp();
+      }
       renderBar(); renderBoard();
     });
     main.append(go);
@@ -1010,7 +1040,7 @@ function reportCard(d) {
       part('Execution', sp.execution_bbl, 'steering, frac, flowback, frac hits, lift and well luck')),
     d.split_note ? h('p', { class: 'hint' }, d.split_note) : null,
     C.budget_needed || C.status !== 'active' ? null : h('div', { class: 'strip-actions' },
-      h('button', { type: 'button', class: 'small-btn', onclick: () => setTab('typecurve') }, 'Rebuild the type curve with your own wells'),
+      h('button', { type: 'button', class: 'small-btn do', onclick: () => setTab('typecurve') }, 'Rebuild the type curve with your own wells'),
       h('button', { type: 'button', class: 'small-btn do', onclick: () => setTab('plan') }, 'Revise this year\'s plan')));
 }
 
@@ -1143,12 +1173,20 @@ async function renderHome() {
       })) : null));
     advanceError = '';
   }
+  const lastRv = (C.board.reviews || []).at(-1);
+  if (lastRv && C.status === 'active' && C.month - (C.year - 1) * 12 < 2) {
+    const P = Object.entries(lastRv.parts || {}).filter(([, v]) => Math.abs(v) > 0.05).sort((a, b) => a[1] - b[1]);
+    end.append(h('div', { class: 'panel-card review-top' }, h('h2', {}, `Year ${lastRv.year} review: confidence ${lastRv.confidence_change >= 0 ? '+' : '−'}${num(Math.abs(lastRv.confidence_change), 1)}, now ${Math.round(C.board.confidence)}`),
+      h('p', {}, `${pct(lastRv.production_ratio)} of guidance, capex ${pct(lastRv.capex_ratio)} of budget.`),
+      h('ul', { class: 'plain' }, ...P.map(([k, v]) => h('li', {}, h('span', {}, (PART_LABEL[k] || k).replace(/^./, c => c.toUpperCase()), lastRv.notes?.[k] ? h('small', { class: 'hint' }, ` ${lastRv.notes[k]}`) : null),
+        h('strong', { class: v >= 0 ? 'pos' : 'neg' }, `${v >= 0 ? '+' : '−'}${num(Math.abs(v), 1)}`))))));
+  }
   if (C.budget_needed && C.status === 'active') {
-    const steps = meetingSteps(), cur = steps.findIndex(s => !s.done);
+    const steps = meetingSteps(), cur = steps.findIndex(s => !s.done && !s.optional);
     end.append(h('div', { class: 'panel-card steps' }, h('h2', {}, `Year ${C.year} budget meeting`),
       h('ol', {}, ...steps.map((st, i) => h('li', { class: st.done ? 'done' : i === cur ? 'now' : '' },
         h('strong', {}, st.title), h('p', {}, st.why),
-        i === cur && st.tab ? h('button', { type: 'button', class: 'small-btn do', onclick: () => setTab(st.tab) }, st.cta.replace(/^Next: /, '').replace(/^./, c => c.toUpperCase())) : null)))));
+        (i === cur || (st.optional && !st.done)) && st.tab ? h('button', { type: 'button', class: `small-btn ${i === cur ? 'do' : ''}`, onclick: () => { if (st.tab === 'diag' && C.board.reviews.length) keep.set(`readReview${C.board.reviews.at(-1).year}`, true); setTab(st.tab); } }, st.cta.replace(/^Next: /, '').replace(/^./, c => c.toUpperCase())) : null)))));
   }
   if (stopNote) {
     const n = stopNote;
@@ -1168,20 +1206,24 @@ async function renderHome() {
   // each with "do it" and "let staff handle it"; recent finished ones below with their outcome.
   const all = C.tasks || [];
   const openAll = all.filter(t => t.status === 'open').sort((a, b) => (b.blocking - a.blocking) || ((a.due_month ?? 1e9) - (b.due_month ?? 1e9)));
-  const soon = (t) => t.blocking || t.due_month == null || t.due_month < C.month + 3;
+  const COSTS = new Set(['rig-contracts', 'water', 'facility']), sets = (t) => COSTS.has(t.kind) || t.affects === 'opex' || t.affects === 'capex';
+  openAll.sort((a, b) => (b.blocking - a.blocking) || (sets(b) - sets(a)));
+  const soon = (t) => t.blocking || sets(t) || t.due_month == null || t.due_month < C.month + 3;
   const open = openAll.filter(soon).length ? openAll.filter(soon) : openAll.slice(0, 1), later = openAll.filter(t => !open.includes(t));
   const closed = all.filter(t => t.status !== 'open').slice(-4).reverse();
   if (open.length || closed.length) end.append(h('div', { class: 'panel-card tasks' }, h('h2', {}, open.length ? 'Jobs waiting for you' : 'Recent jobs'),
     open.length ? h('ul', { class: 'plain' }, ...open.map(t => h('li', { class: t.blocking ? 'blocking' : '' },
       h('span', {}, t.blocking ? h('strong', {}, t.label) : t.label, t.link?.pad ? h('span', { class: 'tag' }, `pad ${t.link.pad}`) : null,
         t.staff_outcome?.headline ? h('small', { class: 'staff' }, `If staff do it: ${t.staff_outcome.headline}`) : null,
-        t.blocking ? h('span', { class: 'tag' }, t.due_month != null ? `blocks the clock at ${monthName(t.due_month)}` : 'blocks the clock') : h('span', { class: 'tag' }, 'optional')),
+        sets(t) ? h('span', { class: 'tag costs' }, 'sets this year’s costs: play it early') : null,
+        t.blocking ? h('span', { class: 'tag' }, t.due_month != null ? `blocks the clock at ${monthName(t.due_month)}` : 'blocks the clock') : h('span', { class: 'tag' }, t.due_month != null ? `optional, until ${monthName(t.due_month)}` : 'optional')),
       h('span', { class: 'strip-actions' }, h('a', { class: 'small-btn do', href: taskUrl(t) }, 'Do it'),
         h('button', { type: 'button', class: 'small-btn', onclick: (e) => delegateTask(t, e.currentTarget) }, 'Let staff handle it'))))) : null,
     closed.length ? h('ul', { class: 'plain done-tasks' }, ...closed.map(t => h('li', {}, h('span', {}, t.label, h('span', { class: 'tag' }, t.status)),
       h('span', { class: 'hint' }, vsStaff(t) || t.result_headline || (t.status === 'delegated' ? 'Staff ran the standard job.' : t.status === 'lapsed' ? 'Lapsed: the standard outcome applied.' : ''))))) : null,
     later.length ? h('details', { class: 'later-jobs' }, h('summary', {}, `${later.length} more optional job${later.length > 1 ? 's' : ''}, due ${monthName(Math.min(...later.map(t => t.due_month ?? 1e9)))} or later`),
-      h('ul', { class: 'plain' }, ...later.map(t => h('li', {}, h('span', {}, t.label, h('span', { class: 'tag' }, `due ${monthName(t.due_month)}`)),
+      h('ul', { class: 'plain' }, ...later.map(t => h('li', {}, h('span', {}, t.label, h('span', { class: 'tag' }, `optional, until ${monthName(t.due_month)}`),
+          t.staff_outcome?.headline ? h('small', { class: 'staff' }, `If staff do it: ${t.staff_outcome.headline}`) : null),
         h('span', { class: 'strip-actions' }, h('a', { class: 'small-btn do', href: taskUrl(t) }, 'Do it'),
           h('button', { type: 'button', class: 'small-btn', onclick: (e) => delegateTask(t, e.currentTarget) }, 'Let staff handle it')))))) : null,
     h('p', { class: 'hint' }, 'Each job is a minigame and its result counts in this career. Staff give the company’s standard outcome: never a disaster, never better than standard.')));
@@ -1226,12 +1268,20 @@ async function renderHome() {
   const yi = C.year - 1, y0 = yi * 12, guid = C.board.guidance[String(yi)], appr = C.board.approved[String(yi)];
   const oilYTD = H.month.reduce((a, m, i) => a + (m >= y0 && m < y0 + 12 ? H.oil[i] : 0), 0);
   const capYTD = H.month.reduce((a, m, i) => a + (m >= y0 && m < y0 + 12 ? H.capex_usd[i] : 0), 0);
-  const into = Math.max(0, C.month - y0);
-  $('year-card').replaceChildren(h('h2', {}, `Year ${C.year} so far`),
-    guid ? h('ul', {}, h('li', {}, h('span', {}, 'Oil to date'), h('strong', {}, bbl(oilYTD))),
-      h('li', {}, h('span', {}, `Guidance pro rata (${into} of 12 months)`), h('strong', {}, bbl(guid * into / 12))),
-      h('li', {}, h('span', {}, 'Capex to date'), h('strong', {}, usd(capYTD))), h('li', {}, h('span', {}, 'Approved budget'), h('strong', {}, usd(appr)))) :
-      h('p', { class: 'hint' }, 'No budget approved yet this year. Take a plan to the board.'));
+  const into = Math.max(0, Math.min(12, C.month - y0)), FC = C.board.forecast?.[String(yi)];
+  const guidTD = FC ? FC.slice(0, Math.floor(into)).reduce((a, b) => a + b, 0) : guid * into / 12;   // guidance rises as pads come online: not a flat twelfth a month
+  const capProj = C.projection?.capex_projected_usd, capRatio = appr ? (capProj ?? capYTD) / appr : 0;
+  const meter = (v) => h('div', { class: 'bar meter', title: 'Capex against the approved budget; the red line is 105%' },
+    h('span', { class: v > 1.05 ? 'over' : v > 1 ? 'near' : '', style: `width:${Math.min(100, v / 1.2 * 100)}%` }), h('i', { style: `left:${100 / 1.2}%` }), h('i', { class: 'limit', style: `left:${105 / 1.2}%` }));
+  $('year-card').replaceChildren(...[h('h2', {}, `Year ${C.year} so far`),
+    guid ? h('ul', {}, h('li', {}, h('span', {}, 'Oil to date'), h('strong', { class: oilYTD < guidTD * 0.95 ? 'neg' : '' }, bbl(oilYTD))),
+      h('li', {}, h('span', {}, `Guidance to date (${Math.floor(into)} of 12 months)`), h('strong', {}, bbl(guidTD))),
+      h('li', {}, h('span', {}, 'Year guidance'), h('strong', {}, bbl(guid))),
+      h('li', {}, h('span', {}, capProj != null ? 'Capex, projected for the year' : 'Capex to date'), h('strong', { class: capRatio > 1.05 ? 'neg' : '' }, `${usd(capProj ?? capYTD)} (${pct(capRatio)})`)),
+      h('li', {}, h('span', {}, 'Approved budget'), h('strong', {}, usd(appr)))) :
+      h('p', { class: 'hint' }, 'No budget approved yet this year. Take a plan to the board.'),
+    guid && appr ? meter(capRatio) : null,
+    guid && appr ? h('p', { class: 'hint' }, 'The review costs confidence below 95% of guidance, and for capex above 105% of the budget (the red line). Supplemental AFEs count.') : null].filter(Boolean));
   const headroom = C.cash_usd + C.credit_line_usd;
   rivalCard();
   const shareBtn = h('button', { type: 'button', class: 'small-btn' }, 'Share this field');
@@ -1318,7 +1368,8 @@ function boardFloorRow(by) {
 // ------------------------------------------------------------------ inbox: list and reading pane, filters, unread
 let mailFilter = 'all', mailOpen = null;
 const KINDS = [['all', 'All'], ['task', 'Jobs'], ['board', 'Board'], ['operations', 'Operations'], ['finance', 'Finance'], ['report', 'Monthly reports']];
-function unreadCount() { const seen = keep.get('seen', 0); return Math.max(0, C.inbox.length - seen); }
+function unreadCount() { const seen = keep.get('seen', 0); const closed = new Set((C.tasks || []).filter(t => t.status !== 'open').map(t => t.id));
+  return C.inbox.slice(seen).filter(m => m.kind !== 'report' && !(m.kind === 'task' && closed.has(m.data?.task))).length; }   // routine reports and settled jobs are not news
 function markRead() { keep.set('seen', C.inbox.length); $('inbox-n').textContent = ''; }
 function msgLink(m) {   // where a message points: a pad on the field, the board, finances, or a steering session
   const d = m.data || {};
@@ -1391,9 +1442,7 @@ function renderAll() { renderBar(); setTab(tab); }
   if (!r.ok) return landing();
   C = r.career.status === 'generating' ? await waitGenerated(id) : r.career;
   if (!C) return;
-  $('landing').hidden = true; $('app').hidden = false;
-  for (const el of ['clock', 'adv1', 'advY']) $(el).hidden = false;   // hidden while the career was generating
-  document.querySelectorAll('.kpi').forEach(k => { k.hidden = false; });
+  showApp();
   try { localStorage.setItem('career.last', C.id); } catch { /* the title screen falls back to the list */ }
   await loadAnalogs();
   renderAll();

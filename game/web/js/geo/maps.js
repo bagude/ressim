@@ -280,7 +280,15 @@ export function renderMaps(host, { C, analogs }) {
         st.picking ? h('p', { class: 'hint' }, 'Click two points on the map: A, then A′.') : null,
         st.xs ? h('button', { type: 'button', class: 'small-btn', onclick: () => { st.xs = null; rerender(); } }, 'Clear the cross-section') : null),
       logWells().length && !GEO?.mock ? saveBox() : null,
-      h('p', { class: 'hint' }, logWells().length ? `${logWells().length} wells have logs. Pick tops in Correlate, then map thickness, net pay and HCPV here.${GEO?.mock ? ' (Synthetic test logs.)' : ''}` : 'Well logs are not available for this field yet.'));
+      h('p', { class: 'hint' }, (() => {
+        const n = logWells().length, picked = Object.keys(st.picks || {}).length, saved = Object.keys(GEO?.geomodels || {}).length;
+        if (!n) return 'Well logs are not available for this field yet.';
+        const tail = GEO?.mock ? ' (Synthetic test logs.)' : '';
+        if (saved) return `Interpretation saved. Next: use it in the type curve, so each pad is scaled to the rock under it.${tail}`;
+        if (picked) return `${picked} of ${n} wells with logs picked. Map net pay or HCPV above, then save the interpretation.${tail}`;
+        return `${n} wells have logs. Pick tops in Correlate, then map thickness, net pay and HCPV here.${tail}`;
+      })()),
+      Object.keys(GEO?.geomodels || {}).length ? h('button', { type: 'button', class: 'small-btn do', onclick: () => document.querySelector('[data-tab="typecurve"]')?.click() }, 'Use it in the type curve') : null);
   }
   function saveBox() {
     const name = h('input', { type: 'text', maxlength: 40, 'aria-label': 'Interpretation name', placeholder: `My map, month ${C.month}` });

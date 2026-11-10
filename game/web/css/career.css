@@ -572,3 +572,28 @@ small.pop { display: block; color: var(--bone-dim); font-size: 11px; }
 .lbl-sm { font-size: 12.5px; color: var(--bone-dim); } .fin-em { margin-top: 22px; }
 #money-card li.pending span { color: var(--gauge); }
 #money-card li.breach span { color: #e8806f; font-weight: 600; }
+
+/* audit fixes: capex meter, cost-setting jobs, last year's review on Home, link-styled buttons, compact phone header */
+.panel-card .bar.meter span.near { background: #d9a441; }
+.panel-card .bar.meter span.over { background: #e8806f; }
+.panel-card .bar.meter i { background: var(--bone-dim); }
+.panel-card .bar.meter i.limit { background: var(--api-red); }
+.tag.costs { color: var(--gauge); border-color: var(--gauge); }
+.review-top { border-left: 3px solid var(--gauge); }
+.review-top ul li { display: flex; justify-content: space-between; gap: 12px; padding: 3px 0; }
+.review-top .pos { color: #7fc47e; } .review-top .neg { color: #e8806f; }
+.linkish { all: unset; cursor: pointer; color: var(--gauge); text-decoration: underline; }
+.linkish:focus-visible { outline: 2px solid var(--bone); outline-offset: 2px; }
+.steps li .small-btn:not(.do) { margin-top: 6px; display: inline-block; }
+@media (max-width: 760px) {
+  .cbar { padding: 8px 12px; gap: 6px 14px; }
+  .cbar .kpi { font-size: 12px; } .cbar .kpi strong { font-size: 13.5px; }
+  .tabs { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; position: sticky; top: var(--barH, 56px); z-index: 9; background: var(--bluestone, #16202a); margin: 0 -12px 10px; padding: 0 12px; }
+  .tabs::-webkit-scrollbar { display: none; }
+  .tabs button { flex: none; padding: 9px 12px; border-left: none; border-bottom: 2px solid transparent; border-radius: 0; }
+  .tabs button[aria-selected='true'] { border-bottom-color: var(--gauge); background: none; }
+}
+.small-btn.do { background: var(--gauge); color: var(--bluestone); border-color: var(--gauge); }
+.steps li .small-btn { margin-top: 6px; display: inline-block; }
+.small-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+@media (max-width: 760px) { .main { padding-top: 2px; } }
