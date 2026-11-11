@@ -13,8 +13,10 @@
 #     the pay conducts; a bank that fell below the pay is lost.
 #   even spread (`settling = false`, the first model): everything stays suspended and is spread evenly
 #     over the height when the fracture closes.
-# Left out in both: proppant slowing the slurry, screen-out pressure (reported, not felt by the flow),
-# the bank narrowing the flow path, grains rolling along the top of the bank, crushing and embedment
+# By default the flow does not feel the proppant: it does not slow the slurry, a screen-out is reported
+# but raises no pressure, and a bank does not narrow the flow path. With `proppant_feedback = true` in the
+# growth solver it does (see `flow_factor` below and research/screen-out.md).
+# Left out in both: grains rolling along the top of the bank, crushing and embedment
 # beyond one stress factor, gel damage. While pumping, the bank's height is worked out with the mean
 # width of the cross-section; at closure the pack fills an ellipse of the same height and area from the
 # bottom, so the narrow bottom of the fracture holds little. Constants come from the sources in
@@ -78,12 +80,15 @@ speed above the bank at which nothing more deposits (Inf: deposit until the cell
 of the local width, with `R` the relative density difference and `d` the grain diameter). With settling on,
 no cell holds more than a full pack; the function returns the grain volume (per unit length of a cell) that
 could not be placed at all.
+`open_fraction` (optional, used with `proppant_feedback`): the share of the step during which the next cell is wide
+enough, in place of the yes or no of `open_next` (see `open_share`).
 """
-function proppant_sweep!(Vs, Hs, Vb; area, height, q_out, open_next, leak, inflow_V, inflow_H, dt, dx, settle = nothing)
+function proppant_sweep!(Vs, Hs, Vb; area, height, q_out, open_next, leak, inflow_V, inflow_H, dt, dx, settle = nothing, open_fraction = nothing)
     inV = inflow_V; inH = inflow_H
     @inbounds for i in eachindex(Vs)
         (inV == 0.0 && Vs[i] == 0.0) && continue
-        coef = (open_next[i] && area[i] > 0) ? dt * q_out[i] / (area[i] * dx) : 0.0
+        coef = isnothing(open_fraction) ? ((open_next[i] && area[i] > 0) ? dt * q_out[i] / (area[i] * dx) : 0.0) :
+            ((open_fraction[i] > 0 && area[i] > 0) ? open_fraction[i] * dt * q_out[i] / (area[i] * dx) : 0.0)
         Vs[i] = (Vs[i] + inV) / (1 + coef)
         inV = Vs[i] * coef
         keep = area[i] > 0 ? area[i] / (area[i] + max(leak[i], 0.0)) : 1.0       # leak-off takes carrier fluid, not grains
@@ -115,6 +120,48 @@ function proppant_sweep!(Vs, Hs, Vb; area, height, q_out, open_next, leak, inflo
     end
     return rejected
 end
+
+"""
+Slurry viscosity over the carrier fluid's, at grain volume fraction `c`: 1 / (1 - c / cmax)^exponent, exponent 2.5.
+This is the relation given by Mack and Warpinski (2000, in Reservoir Stimulation, 3rd edition) as quoted in the
+Itasca 3DEC manual (research/screen-out.md); the original was not opened. It has no upper limit as c nears cmax;
+`flow_factor` caps it at the resistance of a full pack.
+"""
+slurry_viscosity_ratio(c; cmax = 0.6, exponent = 2.5) = c <= 0 ? 1.0 : c >= cmax ? Inf : (1 - c / cmax)^(-exponent)
+
+"""
+    flow_factor(area, height, Vs, Hs, Vb; cmax, diameter, exponent = 2.5)
+
+How much of its clean-fluid conductance a cross-section keeps when it holds proppant (1 = all of it).
+`area`, `height`: the open cross-section; `Vs`: suspended grain volume and `Hs`: area of slurry that carries it;
+`Vb`: grain volume in the bank (all per unit length of fracture). The cross-section is taken at its mean width
+w = area / height and split by height into three parts that flow side by side under the same pressure gradient:
+  clear fluid          its share of the area, at the fluid's own viscosity;
+  laden slurry         its share, slowed by `slurry_viscosity_ratio` of its concentration;
+  bank (a full pack)   its share, as flow through a porous pack: 12 k / w^2 of an open slot of the same width,
+                       k the Kozeny-Carman permeability of the pack (porosity 1 - cmax).
+No part is taken as slower than the pack. A cross-section that is all pack keeps about a hundred-thousandth of its
+conductance (0.2 mm sand, 5 mm wide): the fluid can only filter through.
+"""
+function flow_factor(area, height, Vs, Hs, Vb; cmax = 0.6, diameter, exponent = 2.5)
+    (area > 0 && height > 0 && (Vs > 0 || Vb > 0)) || return 1.0
+    w = area / height
+    m_pack = min(12 * pack_permeability(diameter, 1 - cmax) / w^2, 1.0)
+    f_bank = min(Vb / (cmax * area), 1.0)
+    laden = max(Hs, Vs / cmax)                              # suspended grains take at least the room of a pack
+    f_laden = Vs > 0 ? min(laden / area, 1.0 - f_bank) : 0.0
+    c = Vs > 0 ? Vs / laden : 0.0
+    m_laden = c >= cmax ? m_pack : max((1 - c / cmax)^exponent, m_pack)
+    return clamp((1.0 - f_bank - f_laden) + f_laden * m_laden + f_bank * m_pack, m_pack, 1.0)
+end
+
+"""
+Share of a time step during which a cell is at least `limit` wide, its width taken as changing evenly from `w0` at the
+start of the step to `w1` at its end. A yes or no taken at the end of the step depends on the step: a tip cell that opens
+and widens past the limit within one long step is never seen narrow, while short steps see it narrow for several. With
+the share, grains held back in front of a narrow tip do not depend on the step in that way.
+"""
+open_share(w0, w1, limit) = w0 >= limit ? (w1 >= limit ? 1.0 : (w0 - limit) / (w0 - w1)) : (w1 >= limit ? (w1 - limit) / (w1 - w0) : 0.0)
 
 "Kozeny-Carman pack permeability (m2) for grain diameter d and porosity phi, constant 180."
 pack_permeability(d, phi) = d^2 * phi^3 / (180 * (1 - phi)^2)
@@ -175,4 +222,47 @@ function propped_profile(r; pay, diameter, density = 2650.0, pack_porosity = 0.3
     return (x = r.x, propped_width = wp, conductivity_mdft = cond, propped_half_length = xf, pack_permeability_darcy = k / DARCY,
         share_in_pay = total > 0 ? in_pay / total : 0.0, areal_lb_ft2 = [wp[i] * (1 - pack_porosity) * density / LB_FT2 for i in 1:n],
         bank_height = bank, bank_height_in_pay = bank_in_pay)
+end
+
+"""
+    propped_zones(r, zones; diameter, density, pack_porosity, closure_psi, stress_coefficient, settled)
+
+As `propped_profile`, for several depth zones at once. `zones` is a list of (bottom, top) in metres above the
+fracture's centre line (where the lateral is; negative below it). Returns, for zone k and position i along the
+fracture, `conductivity_mdft[k][i]` (pack permeability x packed area inside the zone / zone thickness) and
+`packed_height[k][i]` (m of the zone's height that holds pack). With the pay as the only zone this is
+`propped_profile`'s conductivity.
+"""
+function propped_zones(r, zones; diameter, density = 2650.0, pack_porosity = 0.35, closure_psi = 0.0, stress_coefficient = 2.4e-4, settled = false)
+    k = pack_permeability(diameter, pack_porosity) * exp(-stress_coefficient * closure_psi)      # m2
+    n = length(r.x); cond = [zeros(n) for _ in zones]; packed = [zeros(n) for _ in zones]
+    for i in 1:n
+        h = r.height[i]; h > 0 || continue
+        low = -r.down[i]                                    # the lower tip, in height above the centre line
+        if settled
+            A = r.area[i]; A > 0 || continue
+            share = min(r.proppant_per_length[i] / ((1 - pack_porosity) * A), 1.0)
+            lo = 0.0; hi = 1.0
+            for _ in 1:50
+                m = 0.5 * (lo + hi)
+                ellipse_fill(m) < share ? (lo = m) : (hi = m)
+            end
+            bank = 0.5 * (lo + hi) * h                      # bank height, from the lower tip up
+            for (kz, (z1, z2)) in enumerate(zones)
+                a1 = clamp(z1 - low, 0.0, h); a2 = clamp(min(z2 - low, bank), 0.0, h)
+                a2 > a1 || continue
+                cond[kz][i] = k * (A * (ellipse_fill(a2 / h) - ellipse_fill(a1 / h)) / (z2 - z1)) / (DARCY * 1e-3) / FT
+                packed[kz][i] = a2 - a1
+            end
+        else
+            wp = r.proppant_per_length[i] / h / (1 - pack_porosity)      # packed width, uniform over the fracture's height
+            for (kz, (z1, z2)) in enumerate(zones)
+                over = min(z2, low + h) - max(z1, low)
+                over > 0 || continue
+                cond[kz][i] = k * wp * (over / (z2 - z1)) / (DARCY * 1e-3) / FT
+                packed[kz][i] = wp >= diameter ? over : 0.0
+            end
+        end
+    end
+    return (conductivity_mdft = cond, packed_height = packed)
 end

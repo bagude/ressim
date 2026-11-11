@@ -164,7 +164,7 @@ every reservoir cell, and the state of every well that exists in both. `lowest_p
 given, is carried too, so a permanent conductivity loss remembers the earlier drawdown.
 """
 function carry_state!(case, previous; lowest_pressure = nothing)
-    last = previous.result.states[end]
+    last = previous isa AbstractDict ? previous : previous.result.states[end]      # a finished run, or a full state
     for (name, st) in case.state0
         haskey(last, name) || continue
         name == :Facility && continue                       # the list of wells may have changed
@@ -259,7 +259,18 @@ include("multifrac.jl")
 include("proppant.jl")
 include("surface.jl")
 include("lift.jl")
+include("pvtlab.jl")
 include("field.jl")
+include("welltest.jl")
+include("dfit.jl")
+include("nodal.jl")
+include("closure.jl")
 include("chain.jl")
+include("parentchild.jl")
+include("ensemble.jl")
+include("match.jl")
+include("vfp.jl")
+include("eclout.jl")
+include("economics.jl")
 
 end # module

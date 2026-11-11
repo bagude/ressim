@@ -1,6 +1,7 @@
 # run outputs
 examples/*_out/
 validation/results_quick.toml
+validation/results_only.toml
 __pycache__/
 *.pyc
 
@@ -11,4 +12,4 @@ game/mg/
 game/careers/
 game/steer/
 game/scores.json
-game/stars.json
+game/docs/research/*.tmp

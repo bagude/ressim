@@ -5,9 +5,10 @@
 # physical width; its conductivity (md-ft) is honoured exactly whatever the cell width.
 # The lateral is frictionless: every stage produces at the same bottom-hole pressure. Each stage is
 # written as its own well so the summary reports stages separately.
-# Idealisations to state when quoting results: fully penetrating fractures in one layer, fracture
+# Idealisations to state when quoting results: by default one layer with fully penetrating fractures
+# (layers, dip and a limited fracture height are optional, see `layers` in the spec), fracture
 # porosity equal to the rock, a declared non-limiting well-to-fracture connection, no fracture
-# conductivity loss with pressure.
+# conductivity loss with pressure unless asked for.
 
 const FT = 0.3048
 
@@ -39,6 +40,13 @@ Base.@kwdef struct FracWellSpec
     # optional, per stage: where across the model the stage's wellbore sits (ft from one side). Empty = the middle.
     # Giving two groups of stages different values models two laterals in the same rock, so they interfere.
     center_ft::Vector{Float64} = Float64[]
+    # optional, per stage: where the lateral crosses the stage's fracture (ft from the same side of the model). Empty = at the
+    # fracture's middle (`center_ft`). A lopsided fracture (a child well's, see `design_child_well`) has its well off the middle:
+    # the longer wing then has further to carry its oil. `conductivity_shape` is read from the well to each tip, wing by wing;
+    # `conductivity_shape_minus`, if given, is the profile of the wing towards smaller y (the other profile then serves the wing
+    # towards larger y only).
+    lateral_ft::Vector{Float64} = Float64[]
+    conductivity_shape_minus::Vector{Vector{Float64}} = Vector{Float64}[]
     # Fracture conductivity that falls as the fracture is drawn down: multiplier exp(-loss * (initial pressure - pressure in the
     # fracture cell)), never below `conductivity_floor`. 0 = off. Unless `conductivity_loss_reversible`, the loss is permanent:
     # the multiplier follows the LOWEST pressure the cell has seen. (Engine feature: ROCKCOMP / ROCKTAB / ROCKNUM in the deck.)
@@ -54,6 +62,10 @@ Base.@kwdef struct FracWellSpec
     perm_map::Any = nothing
     net_thickness_map::Any = nothing
     sw_map::Any = nothing
+    # Optional, per stage: which well (1, 2, ...) the stage belongs to. Used by the surface and field drivers, where every well
+    # produces through one wellbore: all stages of a well then share one bottom-hole pressure. Empty = one well. Give the wells
+    # different `center_ft` to put them side by side in the same rock.
+    well_of_stage::Vector{Int} = Int[]
     # Optional, per stage: the month in which the stage starts producing (0 = from the beginning). A stage that starts later does not
     # exist until then: no fracture, no well. The run is split at every start and the reservoir state is carried across, so a later
     # (child) stage sees the depletion and free gas left by the earlier (parent) ones, and the parents feel the child.
@@ -61,10 +73,56 @@ Base.@kwdef struct FracWellSpec
     # Faults crossing the model: a list of (points = [(x, y), ...], multiplier = m) in the same coordinates as the maps. Flow between two
     # neighbouring cells is multiplied by m when the line between their centres crosses the trace (0 seals). See `well_faults` (structure.jl).
     fault_traces::Any = nothing
+    # Layers and depth (all optional; with none of them set the model is one flat layer, as it always was).
+    # `layers`: the rock from top to bottom, a list of (thickness_ft = , perm_md = , porosity = ) with optional `kv_over_kh` and `sw`
+    #   (immobile water, as `sw_map`). Each entry is one grid layer: split a thick layer into several entries where the fracture
+    #   height or the vertical flow matters (`split_layers`). `thickness_ft`, `perm_md` and `porosity` above are then not used.
+    # `kv_over_kh`: vertical over horizontal permeability of the rock, for layers that do not give their own.
+    # `landing_ft`: depth of the lateral below the top of the stack (NaN = the middle).
+    # `fracture_above_ft`, `fracture_below_ft`: per stage, how far the conductive fracture reaches above and below the lateral
+    #   (empty = to the top / to the base). A grid layer partly covered carries that share of the conductivity.
+    # `fracture_layer_share`: per stage, a multiplier on the conductivity for every layer (0 = the fracture does not conduct there).
+    #   Replaces the two reaches above; this is how a proppant bank that fills the layers unevenly is described (`design_well`).
+    # `well_connection`: "full_height" joins the well to its fracture in every layer the fracture covers (no loss inside the
+    #   fracture on the way to the wellbore, as in the one-layer model); "landing_layer" joins it only in the lateral's own layer, so
+    #   fluid from other layers has to converge through the fracture (resolved only as finely as the layers are).
+    # `dip_deg`: dip across the model (deeper towards larger y); `dip_along_deg`: along the lateral (deeper towards larger x).
+    # With any of these set, `top_ft` is the top of the stack at the middle of the model, `pressure_psi` is the pressure at the
+    # lateral's depth there, the model starts in gravity equilibrium, and `bhp_psi` is at each well's own depth.
+    # Engine defect to know about (GeoEnergyIO 2026-11, cell_centers_from_deltas): with cells of unequal width it applies each
+    # cell's top (width of the cell - width of the first cell) / 2 away from the cell. The deck written here is the standard one;
+    # in this engine a dipping model's depths are therefore off by up to that distance times the dip (a fraction of a foot).
+    # Rock maps together with layers: the maps are the areal trend, the layers the vertical profile. `perm_map` and `porosity_map`
+    # scale every layer by map value / the spec's single value (`perm_md`, `porosity`); `net_thickness_map` gives net pay out of
+    # the whole stack, taken as the same share of every layer; `sw_map` applies to layers that give no `sw` of their own.
+    layers::Vector{Any} = Any[]
+    kv_over_kh::Float64 = 0.1
+    landing_ft::Float64 = NaN
+    fracture_above_ft::Vector{Float64} = Float64[]
+    fracture_below_ft::Vector{Float64} = Float64[]
+    fracture_layer_share::Vector{Vector{Float64}} = Vector{Float64}[]
+    well_connection::String = "full_height"
+    dip_deg::Float64 = 0.0
+    dip_along_deg::Float64 = 0.0
+    # Frac fluid left behind by the job (flowback). `frac_water_bbl`: per stage, the barrels of water the job left in the rock beside
+    # the fracture as modelled (both wings). It starts as water in the cells next to the fracture, filled outward from the
+    # fracture up to 1 - sor, and the water can then flow: back to the well, or deeper into the rock. Empty = no frac water, and
+    # the model's water is immobile as before. `water_relperm`: Corey curves for water against oil, (swc, sor, nw, no, krw_max)
+    # with optional capillary pressure (pc_entry_psi, pc_lambda; 0 = none), or `nothing` for the defaults below. The model starts
+    # at swc everywhere else. One-layer models only for now. The water at the wellhead in the first days includes what stood in the
+    # engine's wellbore; `water_from_rock` separates the two.
+    frac_water_bbl::Vector{Float64} = Float64[]
+    water_relperm::Any = nothing
+    water_viscosity_cp::Float64 = 0.5
     edge_ft::Float64 = 100.0               # rock beyond the first and last stage
-    fracture_width_ft::Float64 = 2.0       # width of the fracture cells (conductivity is preserved)
+    # Width of the fracture cells (conductivity is preserved). The cell holds rock pore volume at the fracture's pressure, so a wide
+    # cell gives up fluid, gas above all, too early: 2 ft (the default until 2026-11-10) reads 1.6% high on first-month oil and 7% on
+    # first-month gas at 0.005 md, 3.5% and 22% at 0.0005 md. The error is proportional to the width; 0.1 ft leaves 0.1% and 0.3%.
+    fracture_width_ft::Float64 = 0.1
     connection_multiple::Float64 = 30.0    # well connection = this many along-fracture cell transmissibilities
-    # fluid: "blackoil_spe1" (illustrative live oil, gas, connate water) or "oil" (constant-compressibility oil)
+    # fluid: "blackoil_spe1" (illustrative live oil, gas, connate water), "oil" (constant-compressibility oil), or "drygas"
+    # (dry gas with the same illustrative gas table, 20% connate water that does not move; one layer, fixed bottom-hole
+    # pressure or a pressure schedule only: no oil-rate targets, no flowback, no tubing or field drivers yet)
     fluid::String = "blackoil_spe1"
     initial_rs::Float64 = 1.27             # Mscf/stb, blackoil_spe1 only (bubble point 4,014.7 psia)
     oil_compressibility::Float64 = 3e-6    # 1/psi, "oil" only
@@ -96,7 +154,8 @@ function load_fracwell(path)
     kw = Dict{Symbol, Any}()
     for (k, v) in d
         T = fieldtype(FracWellSpec, Symbol(k))
-        kw[Symbol(k)] = T == Vector{Vector{Float64}} ? [Float64.(x) for x in v] : T <: Vector ? Float64.(v) : convert(T, v)
+        kw[Symbol(k)] = k == "layers" ? Any[(; (Symbol(a) => Float64(b) for (a, b) in l)...) for l in v] :
+                        T == Vector{Vector{Float64}} ? [Float64.(x) for x in v] : T <: Vector ? Float64.(v) : convert(T, v)
     end
     return FracWellSpec(; kw...)
 end
@@ -136,9 +195,13 @@ function fracwell_layout(s::FracWellSpec)
     all(0 .< cen .< s.width_ft) || error("every stage's center_ft must lie inside the model width")
     half = [min(s.half_length_ft[i], cen[i], s.width_ft - cen[i]) for i in 1:n]
     dyw = min(m.dy, 2 * minimum(half))
+    isempty(s.lateral_ft) || length(s.lateral_ft) == n || error("lateral_ft needs one value per stage")
+    # the row the well sits in: centred on the lateral, kept inside the fracture
+    wrow = isempty(s.lateral_ft) ? cen : [clamp(s.lateral_ft[i], cen[i] - half[i] + dyw / 2, cen[i] + half[i] - dyw / 2) for i in 1:n]
+    isempty(s.lateral_ft) || all(i -> cen[i] - half[i] - 1e-6 <= s.lateral_ft[i] <= cen[i] + half[i] + 1e-6, 1:n) || error("every lateral_ft must lie inside its stage's fracture")
     bps = [0.0, s.width_ft]
     for i in 1:n
-        append!(bps, [cen[i] - dyw / 2, cen[i] + dyw / 2])
+        append!(bps, [wrow[i] - dyw / 2, wrow[i] + dyw / 2])
         half[i] > dyw / 2 + 1e-9 && append!(bps, [cen[i] - half[i], cen[i] + half[i]])
     end
     bps = sort(unique(round.(clamp.(bps, 0.0, s.width_ft), digits = 9)))
@@ -150,11 +213,79 @@ function fracwell_layout(s::FracWellSpec)
     end
     ny = length(dy)
     yc = cumsum(dy) .- dy ./ 2
-    jws = [argmin(abs.(yc .- cen[i])) for i in 1:n]
+    jws = [argmin(abs.(yc .- wrow[i])) for i in 1:n]
     rows = [findall(y -> abs(y - cen[i]) <= half[i] + 1e-9, yc) for i in 1:n]
     eff_half = [sum(dy[r]) / 2 for r in rows]                # half-length actually on the mesh
-    return (dx = dx, dy = dy, icol = icol, jw = jws[1], jws = jws, rows = rows, eff_half_ft = eff_half, nx = length(dx), ny = ny, center_ft = cen)
+    return (dx = dx, dy = dy, icol = icol, jw = jws[1], jws = jws, rows = rows, eff_half_ft = eff_half, nx = length(dx), ny = ny, center_ft = cen, lateral_ft = wrow)
 end
+
+"Layers no thicker than `max_ft`: every entry of `layers` is cut into equal parts (same rock), top to bottom."
+function split_layers(layers; max_ft = 20.0)
+    out = Any[]
+    for l in layers
+        m = max(1, ceil(Int, l.thickness_ft / max_ft - 1e-9))
+        for _ in 1:m
+            push!(out, merge(l, (thickness_ft = l.thickness_ft / m,)))
+        end
+    end
+    return out
+end
+
+"""
+Vertical make-up of a spec's model: layer thicknesses and rock, the lateral's depth and layer, and the share of
+every layer that each stage's fracture covers. `layered` is false when no layer or depth option is set; the deck
+is then the one-layer deck, unchanged.
+"""
+function fracwell_vertical(s::FracWellSpec)
+    n = length(s.positions_ft)
+    lay = isempty(s.layers) ? Any[(thickness_ft = s.thickness_ft, perm_md = s.perm_md, porosity = s.porosity)] : s.layers
+    val(l, k, d) = Float64(get(l, k, d))
+    dz = [val(l, :thickness_ft, NaN) for l in lay]; all(x -> x > 0, dz) || error("every layer needs a positive thickness_ft")
+    perm = [val(l, :perm_md, s.perm_md) for l in lay]; poro = [val(l, :porosity, s.porosity) for l in lay]
+    kvkh = [val(l, :kv_over_kh, s.kv_over_kh) for l in lay]; sw = [val(l, :sw, NaN) for l in lay]
+    all(>(0), perm) && all(x -> 0 < x < 1, poro) && all(>=(0), kvkh) || error("layers need positive perm_md, porosity between 0 and 1, and kv_over_kh of zero or more")
+    nz = length(dz); H = sum(dz); ztop = cumsum(dz) .- dz
+    land = isnan(s.landing_ft) ? H / 2 : s.landing_ft
+    0 <= land <= H || error("landing_ft must lie inside the layer stack (0 to $(H) ft)")
+    k_land = something(findfirst(k -> land < ztop[k] + dz[k] - 1e-9, 1:nz), nz)
+    ab = s.fracture_above_ft; be = s.fracture_below_ft
+    (isempty(ab) || length(ab) == n) && (isempty(be) || length(be) == n) || error("fracture_above_ft and fracture_below_ft need one value per stage")
+    cover = ones(n, nz)
+    for i in 1:n
+        zt = isempty(ab) ? 0.0 : max(land - ab[i], 0.0); zb = isempty(be) ? H : min(land + be[i], H)
+        zb > zt || error("stage $i: the fracture has no height (fracture_above_ft + fracture_below_ft must be positive)")
+        for k in 1:nz
+            cover[i, k] = clamp((min(zb, ztop[k] + dz[k]) - max(zt, ztop[k])) / dz[k], 0.0, 1.0)
+        end
+    end
+    sh = s.fracture_layer_share
+    if !isempty(sh)
+        isempty(ab) && isempty(be) || error("give either fracture_layer_share or the reaches above and below, not both")
+        length(sh) == n && all(x -> length(x) == nz && all(>=(0), x), sh) || error("fracture_layer_share needs, for every stage, one value of zero or more per layer")
+        for i in 1:n
+            any(>(0), sh[i]) || error("stage $i: fracture_layer_share is zero in every layer")
+            cover[i, :] .= sh[i]
+        end
+    end
+    s.well_connection in ("full_height", "landing_layer") || error("well_connection must be \"full_height\" or \"landing_layer\"")
+    if s.well_connection == "landing_layer"
+        for i in 1:n
+            cover[i, k_land] > 0 || error("stage $i: well_connection = \"landing_layer\" but the fracture does not conduct in the lateral's own layer ($k_land); use \"full_height\" or change the fracture")
+        end
+    end
+    layered = !isempty(s.layers) || s.dip_deg != 0 || s.dip_along_deg != 0 || !isempty(ab) || !isempty(be) || !isempty(sh) || s.well_connection != "full_height"
+    return (nz = nz, dz = dz, perm = perm, poro = poro, kvkh = kvkh, sw = sw, height_ft = H, landing_ft = land, k_land = k_land, cover = cover, layered = layered)
+end
+
+"""
+    well_dip(S, spec; origin_ft, azimuth_deg)
+
+`well_dip` for the model a spec describes: its width, and its length from the first stage less `edge_ft` to the
+last stage plus `edge_ft`. `origin_ft` is the map position of the point on the lateral where the spec's
+`positions_ft` would be zero.
+"""
+well_dip(S::Structure, s::FracWellSpec; origin_ft, azimuth_deg = 0.0, kw...) = well_dip(S; origin_ft = origin_ft, azimuth_deg = azimuth_deg, width_ft = s.width_ft,
+    start_ft = minimum(s.positions_ft) - s.edge_ft, length_ft = maximum(s.positions_ft) - minimum(s.positions_ft) + 2 * s.edge_ft, kw...)
 
 fmt_vals(v; per = 8) = join([join([@sprintf("%.9g", x) for x in v[i:min(i + per - 1, end)]], " ") for i in 1:per:length(v)], "\n")
 
@@ -221,6 +352,55 @@ PVTO
 /
 """
 
+"Corey curves for water against oil, with the spec's choices or the defaults (connate water as the fluid's own table has it)."
+function water_curves(s::FracWellSpec)
+    d = (swc = s.fluid == "blackoil_spe1" ? 0.12 : 0.2, sor = 0.25, nw = 2.0, no = 2.0, krw_max = 0.3, pc_entry_psi = 0.0, pc_lambda = 2.0)
+    w = isnothing(s.water_relperm) ? d : merge(d, s.water_relperm)
+    0 <= w.swc < 1 - w.sor < 1 && w.nw > 0 && w.no > 0 && 0 < w.krw_max <= 1 && w.pc_entry_psi >= 0 && w.pc_lambda > 0 || error("water_relperm: need 0 <= swc < 1 - sor < 1, positive exponents, krw_max in (0, 1], pc_entry_psi >= 0")
+    return w
+end
+
+"The SWOF table (water saturation, krw, kro, capillary pressure in psi) of `water_curves`, as deck text."
+function swof_text(w; rows = 26)
+    io = IOBuffer(); println(io, "SWOF")
+    for k in 0:rows-1
+        se = k / (rows - 1); sw = w.swc + se * (1 - w.sor - w.swc)
+        pc = w.pc_entry_psi == 0 ? 0.0 : w.pc_entry_psi * max(se, 0.02)^(-1 / w.pc_lambda)      # Brooks-Corey, capped near connate water
+        @printf(io, " %.6f %.8g %.8g %.6g\n", sw, w.krw_max * se^w.nw, (1 - se)^w.no, pc)
+    end
+    @printf(io, " 1 1 0 0 /\n")
+    return String(take!(io))
+end
+
+"""
+Water saturation per cell at the start, with the frac water of every stage placed beside its fracture: the fracture
+cells first, then the columns next to them on both sides, each filled to 1 - sor before the next is started. Returns
+the saturations and the barrels placed per stage (less than asked for only if the model has no room).
+"""
+function frac_water_saturation(s::FracWellSpec, L, poro, ntg, isfrac, on)
+    w = water_curves(s); nx, ny = L.nx, L.ny
+    sw = fill(w.swc, nx, ny); placed = zeros(length(s.positions_ft))
+    length(s.frac_water_bbl) == length(s.positions_ft) || error("frac_water_bbl needs one value per stage")
+    room(i, j) = poro[i, j] * ntg[i, j] * L.dx[i] * L.dy[j] * s.thickness_ft * (1 - w.sor - sw[i, j]) / 5.614583333      # barrels of water the cell can still take
+    for st in eachindex(s.positions_ft)
+        (on(st) && s.frac_water_bbl[st] > 0) || continue
+        rows = L.rows[st]; c = L.icol[st]; total = sum(L.dy[rows])
+        for j in rows
+            left = s.frac_water_bbl[st] * L.dy[j] / total                # this row's share: spread evenly along the fracture
+            for k in 0:max(c - 1, nx - c)                                # the fracture cell, then outward on both sides
+                # this ring's cells: the fracture cell itself, or the two cells k columns away (not another stage's fracture)
+                cols = k == 0 ? [c] : [i for i in (c - k, c + k) if 1 <= i <= nx && !isfrac[i, j]]
+                for (m, i) in enumerate(cols)
+                    take = min(left / (length(cols) - m + 1), room(i, j))          # an even split of what is left over the cells still to fill
+                    sw[i, j] += take * 5.614583333 / (poro[i, j] * ntg[i, j] * L.dx[i] * L.dy[j] * s.thickness_ft); left -= take; placed[st] += take
+                end
+                left <= 1e-9 && break
+            end
+        end
+    end
+    return sw, placed
+end
+
 "Report-step lengths in days: a ramp from `dt_first`, then steps no longer than `dt_max`, month ends always on a step."
 function fracwell_tstep(s::FracWellSpec)
     dt = Float64[]; t = 0.0; x = s.dt_first_days
@@ -237,16 +417,18 @@ function fracwell_tstep(s::FracWellSpec)
 end
 
 "Write the ECLIPSE-format deck for a spec. Returns the layout used."
-function write_fracwell_deck(s::FracWellSpec, path; bhp_schedule = nothing, oil_rate_target = nothing, single_well = false, active = nothing)
+function write_fracwell_deck(s::FracWellSpec, path; bhp_schedule = nothing, oil_rate_target = nothing, single_well = false, active = nothing, rate_schedule = nothing, step_days = nothing)
+    # rate_schedule: a list of (step length in days, oil rate in stb/d), one entry per report step; replaces the spec's own time steps
     on(i) = isnothing(active) || active[i]              # stages not yet started have no fracture and no well
     L = fracwell_layout(s)
     nx, ny = L.nx, L.ny; nc = nx * ny
     n = length(s.positions_ft)
+    V = fracwell_vertical(s); nz = V.nz; layered = V.layered
     perm = fill(s.perm_md, nx, ny); isfrac = falses(nx, ny)
     # cell centres in the spec's own coordinates: x along the lateral as in `positions_ft`, y across the model
     xc_map = (minimum(s.positions_ft) - s.edge_ft) .+ cumsum(L.dx) .- L.dx ./ 2; yc_map = cumsum(L.dy) .- L.dy ./ 2
     mapped = !all(isnothing, (s.porosity_map, s.perm_map, s.net_thickness_map, s.sw_map))
-    sw_ref = s.fluid == "blackoil_spe1" ? 0.12 : 0.0                     # the uniform water saturation the deck starts with
+    sw_ref = s.fluid == "blackoil_spe1" ? 0.12 : s.fluid == "drygas" ? 0.2 : 0.0      # the uniform water saturation the deck starts with
     poro = fill(s.porosity, nx, ny); ntg = ones(nx, ny)
     if mapped
         for j in 1:ny, i in 1:nx
@@ -258,51 +440,117 @@ function write_fracwell_deck(s::FracWellSpec, path; bhp_schedule = nothing, oil_
                 poro[i, j] *= (1 - sw) / (1 - sw_ref)
             end
             if !isnothing(s.net_thickness_map)
-                net = s.net_thickness_map(x, y); 0 < net <= s.thickness_ft * (1 + 1e-9) || error("net_thickness_map must return values between 0 and thickness_ft (the gross thickness)")
-                ntg[i, j] = min(net / s.thickness_ft, 1.0)
+                gross = isempty(s.layers) ? s.thickness_ft : V.height_ft
+                net = s.net_thickness_map(x, y); 0 < net <= gross * (1 + 1e-9) || error("net_thickness_map must return values between 0 and the gross thickness (thickness_ft, or the sum of the layers)")
+                ntg[i, j] = min(net / gross, 1.0)
             end
         end
         all(>(0), perm) && all(x -> 0 < x < 1, poro) || error("mapped permeability must be positive and mapped porosity between 0 and 1")
     end
     isempty(s.conductivity_shape) || length(s.conductivity_shape) == n || error("conductivity_shape needs one profile per stage")
+    isempty(s.conductivity_shape_minus) || (length(s.conductivity_shape_minus) == n && !isempty(s.conductivity_shape)) || error("conductivity_shape_minus needs one profile per stage, and conductivity_shape for the other wing")
+    isempty(s.conductivity_shape_minus) || !isempty(s.lateral_ft) || error("conductivity_shape_minus is read only when lateral_ft says where the well crosses each fracture; give lateral_ft (the fracture's middle is center_ft)")
     yc = cumsum(L.dy) .- L.dy ./ 2
+    perm_rock = copy(perm)                                 # the rock alone, before fractures are written over it
+    fcells = Tuple{Int, Int, Float64}[]                    # (stage, row, fracture permeability) of every fracture cell
     for i in 1:n, j in L.rows[i]
         on(i) || continue
         mult = 1.0
         if !isempty(s.conductivity_shape)                 # linear between the given points, well to tip
-            sh = s.conductivity_shape[i]; m = length(sh)
-            u = clamp(abs(yc[j] - L.center_ft[i]) / max(L.eff_half_ft[i], 1e-9), 0.0, 1.0) * (m - 1)
+            sh = s.conductivity_shape[i]; u = 0.0
+            if isempty(s.lateral_ft)                        # well at the fracture's middle: one profile, both wings
+                u = clamp(abs(yc[j] - L.center_ft[i]) / max(L.eff_half_ft[i], 1e-9), 0.0, 1.0)
+            else                                            # well off the middle: each wing from the well to its own tip
+                up = yc[j] >= L.lateral_ft[i]
+                wing = up ? L.center_ft[i] + L.eff_half_ft[i] - L.lateral_ft[i] : L.lateral_ft[i] - (L.center_ft[i] - L.eff_half_ft[i])
+                u = clamp(abs(yc[j] - L.lateral_ft[i]) / max(wing, 1e-9), 0.0, 1.0)
+                up || isempty(s.conductivity_shape_minus) || (sh = s.conductivity_shape_minus[i])
+            end
+            m = length(sh); u *= (m - 1)
             k0 = min(floor(Int, u) + 1, max(m - 1, 1)); f = u - (k0 - 1)
             mult = m == 1 ? sh[1] : sh[k0] + f * (sh[k0+1] - sh[k0])
         end
         perm[L.icol[i], j] = max(mult * s.conductivity_mdft[i] / s.fracture_width_ft, perm[L.icol[i], j])   # never below the rock or another fracture
         isfrac[L.icol[i], j] = true
+        push!(fcells, (i, j, mult * s.conductivity_mdft[i] / s.fracture_width_ft))
     end
-    live = s.fluid == "blackoil_spe1"
-    live || s.fluid == "oil" || error("unknown fluid '$(s.fluid)'")
+    # Layers and depth: the same fracture footprint in every layer the fracture covers; a layer partly covered carries that share.
+    # Inside the fracture the permeability is the same up and down as along it; in the rock, vertical = kv/kh * horizontal.
+    rocknum = [isfrac[k] ? 2 : 1 for k in 1:nc]
+    perm3 = zeros(0, 0, 0); permz3 = perm3; poro3 = perm3; tops = Float64[]
+    xmid = (xc_map[1] - L.dx[1] / 2 + xc_map[end] + L.dx[end] / 2) / 2
+    top_at(x, y) = s.top_ft + (x - xmid) * tand(s.dip_along_deg) + (y - s.width_ft / 2) * tand(s.dip_deg)
+    if layered
+        sw_ref3 = s.fluid == "blackoil_spe1" ? 0.12 : 0.0
+        # areal trend from the maps (1 everywhere without maps): map value over the spec's single value
+        ktrend = perm_rock ./ s.perm_md; ptrend = isnothing(s.porosity_map) ? ones(nx, ny) : [s.porosity_map(xc_map[i], yc_map[j]) / s.porosity for i in 1:nx, j in 1:ny]
+        swf(i, j, k) = !isnan(V.sw[k]) ? (1 - V.sw[k]) / (1 - sw_ref3) : isnothing(s.sw_map) ? 1.0 : (1 - s.sw_map(xc_map[i], yc_map[j])) / (1 - sw_ref3)
+        perm3 = [V.perm[k] * ktrend[i, j] for i in 1:nx, j in 1:ny, k in 1:nz]; permz3 = [V.kvkh[k] * V.perm[k] * ktrend[i, j] for i in 1:nx, j in 1:ny, k in 1:nz]
+        poro3 = [V.poro[k] * ptrend[i, j] * swf(i, j, k) for i in 1:nx, j in 1:ny, k in 1:nz]
+        all(x -> 0 < x < 1, poro3) || error("porosity after the maps must stay between 0 and 1 in every layer")
+        isfrac3 = falses(nx, ny, nz)
+        for (i, j, kf) in fcells, k in 1:nz
+            V.cover[i, k] > 0 || continue
+            c = L.icol[i]; v = kf * V.cover[i, k]
+            if v > perm3[c, j, k] || !isfrac3[c, j, k]
+                perm3[c, j, k] = max(v, perm3[c, j, k]); permz3[c, j, k] = max(v, permz3[c, j, k])
+            end
+            isfrac3[c, j, k] = true
+        end
+        rocknum = [isfrac3[k] ? 2 : 1 for k in 1:nc*nz]
+        tops = [top_at(xc_map[i], yc_map[j]) for j in 1:ny for i in 1:nx]
+    end
+    live = s.fluid == "blackoil_spe1"; drygas = s.fluid == "drygas"
+    live || drygas || s.fluid == "oil" || error("unknown fluid '$(s.fluid)'")
+    if drygas
+        layered && error("the dry-gas fluid is for one-layer models for now")
+        isempty(s.frac_water_bbl) || error("flowback (frac_water_bbl) is not available with the dry-gas fluid yet")
+        isnothing(oil_rate_target) && isnothing(rate_schedule) || error("a gas well cannot be given an oil-rate target")
+    end
+    flowback = !isempty(s.frac_water_bbl)
+    flowback && layered && error("frac_water_bbl (flowback) is for one-layer models for now")
+    sw0 = zeros(0, 0); water_placed = Float64[]; wc = flowback ? water_curves(s) : nothing
+    if flowback
+        sw0, water_placed = frac_water_saturation(s, L, poro, ntg, isfrac, on)
+    end
     live && s.pressure_psi < 4014.7 && error("blackoil_spe1 with initial_rs 1.27 needs initial pressure above its 4,014.7 psia bubble point")
     open(path, "w") do io
         println(io, "-- Generated by Ressim (fracwell). Geometry is an input; no fracture growth is modelled.")
-        println(io, "RUNSPEC\nTITLE\n ", s.name, "\nDIMENS\n ", nx, " ", ny, " 1 /\nOIL\nWATER")
+        println(io, "RUNSPEC\nTITLE\n ", s.name, "\nDIMENS\n ", nx, " ", ny, " ", nz, drygas ? " /\nGAS\nWATER" : " /\nOIL\nWATER")
         live && println(io, "GAS\nDISGAS")
-        println(io, "FIELD\nSTART\n 1 'JAN' 2020 /\nWELLDIMS\n ", n, " ", n, " ", n, " ", n, " /\nTABDIMS\n/")
+        if layered
+            println(io, "FIELD\nSTART\n 1 'JAN' 2020 /\nWELLDIMS\n ", n, " ", n * nz, " ", n, " ", n, " /\nTABDIMS\n/\nEQLDIMS\n 1 /")
+        else
+            println(io, "FIELD\nSTART\n 1 'JAN' 2020 /\nWELLDIMS\n ", n, " ", n, " ", n, " ", n, " /\nTABDIMS\n/")
+        end
         lossy = s.conductivity_loss_per_psi > 0
         lossy && println(io, "ROCKCOMP\n '", s.conductivity_loss_reversible ? "REVERS" : "IRREVERS", "' 2 /")
-        println(io, "GRID\nDXV\n", fmt_vals(L.dx), " /\nDYV\n", fmt_vals(L.dy), " /\nDZV\n ", s.thickness_ft, " /")
-        if mapped
+        if layered
+            println(io, "GRID\nDXV\n", fmt_vals(L.dx), " /\nDYV\n", fmt_vals(L.dy), " /\nDZV\n", fmt_vals(V.dz), " /")
+            println(io, "TOPS\n", fmt_vals(tops), " /\nPORO\n", fmt_vals(vec(poro3)), " /")
+            isnothing(s.net_thickness_map) || println(io, "NTG\n", fmt_vals(repeat(vec(ntg), nz)), " /")
+        else
+            println(io, "GRID\nDXV\n", fmt_vals(L.dx), " /\nDYV\n", fmt_vals(L.dy), " /\nDZV\n ", s.thickness_ft, " /")
+        end
+        if layered
+        elseif mapped
             println(io, "TOPS\n ", nc, "*", s.top_ft, " /\nPORO\n", fmt_vals(vec(poro)), " /")
             isnothing(s.net_thickness_map) || println(io, "NTG\n", fmt_vals(vec(ntg)), " /")
         else
             println(io, "TOPS\n ", nc, "*", s.top_ft, " /\nPORO\n ", nc, "*", s.porosity, " /")
         end
-        println(io, "PERMX\n", fmt_vals(vec(perm)), " /\nCOPY\n PERMX PERMY /\n PERMX PERMZ /\n/")
+        if layered
+            println(io, "PERMX\n", fmt_vals(vec(perm3)), " /\nCOPY\n PERMX PERMY /\n/\nPERMZ\n", fmt_vals(vec(permz3)), " /")
+        else
+            println(io, "PERMX\n", fmt_vals(vec(perm)), " /\nCOPY\n PERMX PERMY /\n PERMX PERMZ /\n/")
+        end
         if !isnothing(s.fault_traces) && !isempty(s.fault_traces)        # MULTX / MULTY act on the face towards the next cell in x / y
             mx = ones(nx, ny); my = ones(nx, ny)
             for j in 1:ny, i in 1:nx
                 i < nx && (mx[i, j] = crossing_multiplier(s.fault_traces, xc_map[i], yc_map[j], xc_map[i+1], yc_map[j]))
                 j < ny && (my[i, j] = crossing_multiplier(s.fault_traces, xc_map[i], yc_map[j], xc_map[i], yc_map[j+1]))
             end
-            println(io, "MULTX\n", fmt_vals(vec(mx)), " /\nMULTY\n", fmt_vals(vec(my)), " /")
+            println(io, "MULTX\n", fmt_vals(repeat(vec(mx), nz)), " /\nMULTY\n", fmt_vals(repeat(vec(my), nz)), " /")
         end
         println(io, "PROPS\nROCK\n 14.7 ", s.rock_compressibility, " /")
         if lossy          # two rock tables against pressure: pore-volume multiplier (the rock compressibility above) and transmissibility multiplier
@@ -316,32 +564,77 @@ function write_fracwell_deck(s::FracWellSpec, path; bhp_schedule = nothing, oil_
                 println(io, "/")
             end
         end
-        if live
+        if live && flowback       # the fluid's own tables, with water that can move: its SWOF and PVTW replaced
+            a2 = first(findfirst("SGOF", PROPS_SPE1))             # everything from the gas-oil table on is kept as it is
+            println(io, "PVTW\n 4017.55 1.038 3.22E-6 ", s.water_viscosity_cp, " 0.0 /"); print(io, swof_text(wc)); print(io, PROPS_SPE1[a2:end])
+        elseif live
             print(io, PROPS_SPE1)
+        elseif drygas             # the illustrative gas table of the live-oil fluid on its own; connate water that cannot move
+            g1 = first(findfirst("PVDG", PROPS_SPE1)); g2 = first(findfirst("PVTO", PROPS_SPE1))
+            println(io, "PVTW\n ", s.pressure_psi, " 1.0 3.0E-6 ", s.water_viscosity_cp, " 0.0 /\nDENSITY\n 53.66 64.49 0.0533 /")
+            print(io, PROPS_SPE1[g1:g2-1]); println(io, "SWOF\n 0.2 0 1 0\n 1 1 0 0 /\nSGOF\n 0 0 1 0\n 0.8 1 0 0 /")
+        elseif flowback
+            println(io, "PVCDO\n ", s.pressure_psi, " 1.0 ", s.oil_compressibility, " ", s.oil_viscosity_cp, " 0.0 /")
+            println(io, "PVTW\n ", s.pressure_psi, " 1.0 3.0E-6 ", s.water_viscosity_cp, " 0.0 /")
+            print(io, "DENSITY\n 53.66 64.49 0.0533 /\n", swof_text(wc))
         else
             println(io, "PVCDO\n ", s.pressure_psi, " 1.0 ", s.oil_compressibility, " ", s.oil_viscosity_cp, " 0.0 /")
             println(io, "PVTW\n ", s.pressure_psi, " 1.0 ", s.oil_compressibility, " ", s.oil_viscosity_cp, " 0.0 /")
             println(io, "DENSITY\n 53.66 64.49 0.0533 /\nSWOF\n 0 0 1 0\n 1 1 0 0 /")
         end
-        lossy && println(io, "REGIONS\nROCKNUM\n", fmt_vals([isfrac[k] ? 2 : 1 for k in 1:nc]), " /")
-        println(io, "SOLUTION\nPRESSURE\n ", nc, "*", s.pressure_psi, " /\nSWAT\n ", nc, "*", live ? 0.12 : 0.0, " /")
-        live && println(io, "SGAS\n ", nc, "*0 /\nRS\n ", nc, "*", s.initial_rs, " /")
+        lossy && println(io, "REGIONS\nROCKNUM\n", fmt_vals(rocknum), " /")
+        if layered     # gravity equilibrium: the pressure asked for at the lateral's depth in the middle of the model, no contacts in the model
+            datum = s.top_ft + V.landing_ft
+            println(io, "SOLUTION\nEQUIL\n ", datum, " ", s.pressure_psi, " ", datum + 50000.0, " 0 0 0", live ? " 1 0 0" : "", " /")
+            live && println(io, "RSVD\n 0 ", s.initial_rs, "\n ", datum + 50000.0, " ", s.initial_rs, " /")
+        elseif flowback
+            println(io, "SOLUTION\nPRESSURE\n ", nc, "*", s.pressure_psi, " /\nSWAT\n", fmt_vals(vec(sw0)), " /")
+            live && println(io, "SGAS\n ", nc, "*0 /\nRS\n ", nc, "*", s.initial_rs, " /")
+        elseif drygas
+            println(io, "SOLUTION\nPRESSURE\n ", nc, "*", s.pressure_psi, " /\nSWAT\n ", nc, "*0.2 /\nSGAS\n ", nc, "*0.8 /")
+        else
+            println(io, "SOLUTION\nPRESSURE\n ", nc, "*", s.pressure_psi, " /\nSWAT\n ", nc, "*", live ? 0.12 : 0.0, " /")
+            live && println(io, "SGAS\n ", nc, "*0 /\nRS\n ", nc, "*", s.initial_rs, " /")
+        end
         println(io, "SUMMARY\nSCHEDULE\nWELSPECS")
         depth = s.top_ft + s.thickness_ft / 2
+        well_depth(i) = layered ? top_at(xc_map[L.icol[i]], yc_map[L.jws[i]]) + V.landing_ft : depth
         # default: every stage is its own well (per-stage reporting). single_well: one well, W1, with a
         # connection per stage, which is what a rate target or a tubing condition on the whole lateral needs.
-        wname(i) = single_well ? "W1" : @sprintf("S%03d", i)
-        wells = single_well ? (1:1) : [i for i in 1:n if on(i)]
+        isempty(s.well_of_stage) || length(s.well_of_stage) == n || error("well_of_stage needs one value per stage")
+        wo(i) = isempty(s.well_of_stage) ? 1 : s.well_of_stage[i]
+        wname(i) = single_well ? "W" * string(wo(i)) : @sprintf("S%03d", i)
+        # single_well: one entry per well (its first active stage stands for it in the well list and the controls)
+        wells = single_well ? [findfirst(i -> on(i) && wo(i) == j, 1:n) for j in sort(unique(wo(i) for i in 1:n if on(i)))] : [i for i in 1:n if on(i)]
         for i in wells
-            @printf(io, " '%s' 'G' %d %d %.4f 'OIL' /\n", wname(i), L.icol[i], L.jws[i], depth)
+            @printf(io, " '%s' 'G' %d %d %.4f '%s' /\n", wname(i), L.icol[i], L.jws[i], well_depth(i), drygas ? "GAS" : "OIL")
         end
         println(io, "/\nCOMPDAT")
         for i in 1:n
             on(i) || continue
+            if layered     # one connection per layer the fracture covers, or only the lateral's own layer
+                for k in (s.well_connection == "full_height" ? (1:nz) : (V.k_land:V.k_land))
+                    V.cover[i, k] > 0 || continue
+                    cfk = s.connection_multiple * 0.001127 * s.conductivity_mdft[i] * V.cover[i, k] * V.dz[k] * ntg[L.icol[i], L.jws[i]] / L.dy[L.jws[i]]
+                    @printf(io, " '%s' %d %d %d %d 'OPEN' 1* %.9g 0.5 /\n", wname(i), L.icol[i], L.jws[i], k, k, cfk)
+                end
+                continue
+            end
             cf = s.connection_multiple * 0.001127 * s.conductivity_mdft[i] * s.thickness_ft * ntg[L.icol[i], L.jws[i]] / L.dy[L.jws[i]]   # net pay at the well cell
             @printf(io, " '%s' %d %d 1 1 'OPEN' 1* %.9g 0.5 /\n", wname(i), L.icol[i], L.jws[i], cf)
         end
-        steps = fracwell_tstep(s)
+        if !isnothing(rate_schedule)                     # one oil rate per report step, the spec's pressure as the lower limit
+            for (dtk, rate) in rate_schedule
+                println(io, "/\nWCONPROD")
+                for i in wells
+                    @printf(io, " '%s' 'OPEN' 'ORAT' %.9g 4* %.4f /\n", wname(i), rate, s.bhp_psi)
+                end
+                @printf(io, "/\nTSTEP\n %.9g ", dtk)
+            end
+            println(io, "/\nEND")
+            return merge(L, (rocknum = rocknum, nz = nz, dz = V.dz, k_land = V.k_land, cover = V.cover, landing_ft = V.landing_ft, frac_water_placed_bbl = water_placed))
+        end
+        steps = isnothing(step_days) ? fracwell_tstep(s) : step_days       # step_days: your own report steps, for short tests
         if !isnothing(bhp_schedule)                      # one bottom-hole pressure per report step
             @assert length(bhp_schedule) == length(steps)
             for (k, dtk) in enumerate(steps)
@@ -364,7 +657,7 @@ function write_fracwell_deck(s::FracWellSpec, path; bhp_schedule = nothing, oil_
         end
         println(io, "/\nTSTEP\n", fmt_vals(steps), " /\nEND")
     end
-    return merge(L, (rocknum = [isfrac[k] ? 2 : 1 for k in 1:nc],))
+    return merge(L, (rocknum = rocknum, nz = nz, dz = V.dz, k_land = V.k_land, cover = V.cover, landing_ft = V.landing_ft, frac_water_placed_bbl = water_placed))
 end
 
 """
@@ -456,14 +749,41 @@ end
 """
 Reservoir pressure on the model grid at the end of a fractured-well run (or at solver step `step` of its last
 period): `psi[i, j]` with cell centres `x_ft[i]` along the lateral (the coordinate of `positions_ft`) and
-`y_ft[j]` across the model.
+`y_ft[j]` across the model. In a layered model it is the lateral's own layer unless `layer` is given.
 """
-function pressure_field(r; step = nothing)
+function pressure_field(r; step = nothing, layer = nothing)
     L = r.layout; st = r.run.result.states
     p = st[isnothing(step) ? length(st) : step][:Pressure]
+    nz = get(L, :nz, 1)
+    nz > 1 && (p = reshape(collect(p), L.nx, L.ny, nz)[:, :, something(layer, L.k_land)])
     i0 = argmin([t.position_ft for t in r.stages])                # line the cell centres up with the stage positions
     xc = cumsum(L.dx) .- L.dx ./ 2; xc .+= r.stages[i0].position_ft - xc[L.icol[i0]]
     return (psi = reshape(collect(p), L.nx, L.ny) ./ PSI, x_ft = xc, y_ft = cumsum(L.dy) .- L.dy ./ 2)
+end
+
+"""
+    water_from_rock(r)
+
+Where the water of a fractured-well run came from, in barrels at surface conditions, from the engine's own water mass:
+`rock_bbl` is what the reservoir cells gave up, `wellbore_bbl` what stood in the engine's wellbores and was produced
+(the engine gives every well a volume and fills it at the start with fluid like that of the cell it is connected to, so
+the wellhead figures of the first days include it), `produced_bbl` their sum. All three are counted from the end of the
+first solver step (the engine keeps no mass for the starting state); with the default first step of a thousandth of a
+day that leaves out about a barrel. For load recovery use `rock_bbl`.
+"""
+function water_from_rock(r)
+    rho = 64.49 * 16.01846337                               # surface density of water in the generated decks, kg/m3
+    rock = 0.0; bore = 0.0
+    for o in r.runs
+        full = o.result.result.states
+        mass(st, name) = sum(st[name][:TotalMasses][1, :])
+        rock += mass(full[1], :Reservoir) - mass(full[end], :Reservoir)
+        for name in keys(full[1])
+            (name in (:Reservoir, :Facility, :substates) || !haskey(full[1][name], :TotalMasses)) && continue
+            bore += mass(full[1], name) - mass(full[end], name)
+        end
+    end
+    return (rock_bbl = rock / rho / 0.158987294928, wellbore_bbl = bore / rho / 0.158987294928, produced_bbl = (rock + bore) / rho / 0.158987294928)
 end
 
 "Oil produced per calendar month (stb) for one stage well of a fracwell result."

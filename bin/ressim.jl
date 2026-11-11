@@ -23,6 +23,12 @@ if cmd == "run" && length(ARGS) >= 2
     @printf("cumulative injection: water %.4g stb, gas %.4g Mscf\n", sum(f[:water_inj] .* dt) / Ressim.STB, sum(f[:gas_inj] .* dt) / Ressim.MSCF)
     isempty(o.notes) || println("deck keywords not fully honoured:\n  ", join(o.notes, "\n  "))
     println("summary: ", joinpath(out, "summary_field.csv"))
+    try          # the same results as the binary summary pair other tools read
+        files = Ressim.write_ecl_summary(o, joinpath(out, uppercase(first(splitext(basename(deck))))))
+        println("binary summary: ", files.smspec, " and .UNSMRY (layout not yet checked by another program)")
+    catch err
+        println("binary summary not written: ", sprint(showerror, err))
+    end
 elseif cmd == "fracwell" && length(ARGS) >= 2
     include(joinpath(ROOT, "src", "Ressim.jl"))
     using .Ressim
@@ -38,6 +44,12 @@ elseif cmd == "fracwell" && length(ARGS) >= 2
     @printf("%-6s %12s %16s %16s %12.0f %12.0f %12.1f   (%d months)\n", "total", "", "", "", sum(s.oil_stb for s in r.stages),
         sum(s.gas_mscf for s in r.stages), sum(s.water_stb for s in r.stages), spec.months)
     println("half-length is the value represented on the mesh. Files: ", out, " (deck, summary_field.csv, stages.csv)")
+    try
+        files = Ressim.write_ecl_summary(r, joinpath(out, uppercase(replace(spec.name, r"[^A-Za-z0-9_]" => "_"))))
+        println("binary summary: ", files.smspec, " and .UNSMRY (layout not yet checked by another program)")
+    catch err
+        println("binary summary not written: ", sprint(showerror, err))
+    end
 elseif cmd == "design" && length(ARGS) >= 2
     include(joinpath(ROOT, "src", "Ressim.jl"))
     using .Ressim
@@ -67,10 +79,10 @@ elseif cmd == "design" && length(ARGS) >= 2
     isempty(d.notes) || println("notes:\n  ", join(d.notes, "\n  "))
     println("files: ", out)
 elseif cmd == "validate"
-    tier = length(ARGS) >= 2 ? ARGS[2] : "quick"
-    empty!(ARGS); push!(ARGS, tier)
+    tier = length(ARGS) >= 2 ? ARGS[2] : "quick"; chosen_tests = length(ARGS) >= 3 ? ARGS[3] : nothing     # validate full name1,name2 runs just those tests
+    empty!(ARGS); push!(ARGS, isnothing(chosen_tests) ? tier : "full"); isnothing(chosen_tests) || push!(ARGS, chosen_tests)
     include(joinpath(ROOT, "validation", "suite.jl"))
-    tier == "full" ? include(joinpath(ROOT, "validation", "scorecard.jl")) : println("quick tier: SCORECARD.md is built from the full tier only and was left as it is")
+    tier == "full" && isnothing(chosen_tests) ? include(joinpath(ROOT, "validation", "scorecard.jl")) : println("SCORECARD.md is built from a complete full-tier run only and was left as it is")
 elseif cmd == "scorecard"
     include(joinpath(ROOT, "validation", "scorecard.jl"))
 else

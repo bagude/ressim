@@ -49,7 +49,7 @@ note = "written here; unconditional fields only: no conditioning to wells, no fa
 area = "Geology"
 name = "Fractured well in rock that varies across the map: net pay, porosity, water saturation, permeability per cell"
 known_for = "ECLIPSE, IMEX, tNavigator, Nexus"
-tests = ["fracwell_maps"]
+tests = ["fracwell_maps", "placement_round_trip"]
 note = "one layer; water is immobile (it only reduces the oil-filled pore volume); no outside reference"
 
 [[feature]]
@@ -63,14 +63,27 @@ note = "written here; geometric faults (throw largest mid-trace, dying out with 
 area = "Geology"
 name = "Sealing and leaky faults in the well model (transmissibility multipliers along fault traces)"
 known_for = "ECLIPSE, IMEX, tNavigator, Nexus"
-tests = ["fracwell_faults"]
+tests = ["fracwell_faults", "placement_round_trip"]
 note = "the trace seals the cell faces it crosses, fractures included; throw itself does not act in a one-layer model"
 
 [[feature]]
 area = "Geology"
-name = "Depth of the reservoir varying across a well model (dip, gravity), layers, juxtaposition across faults"
+name = "Layers offset across faults (juxtaposition), layer surfaces that are not planes, a separate rock map for each layer"
 known_for = "ECLIPSE, IMEX, tNavigator, Nexus"
 absent = "fault.?trace"
+
+[[feature]]
+area = "Fluids"
+name = "Laboratory tests read off the black-oil tables: constant-composition expansion, differential liberation, separator test"
+known_for = "whitson+, PVTsim, PVTp"
+tests = ["pvt_lab"]
+note = "table arithmetic for the built-in live oil only; no equation of state, so no compositions, no minimum miscibility pressure, one fixed separator"
+
+[[feature]]
+area = "Fluids"
+name = "Equation-of-state fluid characterisation, minimum miscibility pressure, gas injection and huff-n-puff studies"
+known_for = "whitson+, PVTsim, GEM"
+absent = "minimum.?miscib"
 
 [[feature]]
 area = "Physics"
@@ -93,14 +106,14 @@ tests = ["cross_polymer"]
 
 [[feature]]
 area = "Physics"
-name = "Thermal flow (hot and cold water, conduction)"
+name = "Thermal flow with moving water (hot and cold water injection); conduction alone is tested"
 known_for = "STARS, ECLIPSE thermal, INTERSECT"
 engine = "src/thermal"
 note = "the shipped reference case has 472,500 cells, too large for a seconds-long suite"
 
 [[feature]]
 area = "Physics"
-name = "CO2 storage properties"
+name = "CO2 storage in a reservoir model (the property correlations alone are tested)"
 known_for = "GEM, ECLIPSE CO2STORE, tNavigator"
 engine = "src/CO2Properties"
 
@@ -112,19 +125,7 @@ engine = "src/Geothermal"
 
 [[feature]]
 area = "Physics"
-name = "Tracers"
-known_for = "ECLIPSE, INTERSECT, tNavigator"
-engine = "src/Tracers"
-
-[[feature]]
-area = "Physics"
-name = "Relative-permeability hysteresis"
-known_for = "ECLIPSE, IMEX/GEM"
-engine = "src/variables/relperm/hysteresis.jl"
-
-[[feature]]
-area = "Physics"
-name = "End-point scaling"
+name = "Three-point and capillary-pressure end-point scaling (two-point scaling is tested)"
 known_for = "ECLIPSE, INTERSECT"
 engine = "src/variables/relperm/endscale.jl"
 
@@ -281,7 +282,7 @@ note = "no outside reference for the chained result"
 
 [[feature]]
 area = "Fracture growth"
-name = "Screen-out pressure, proppant slowing the slurry, the bank narrowing the flow path"
+name = "Proppant slipping against the fluid along the fracture, a pack propping the walls while pressure falls, bridging in perforations and wellbore"
 known_for = "ResFrac, GOHFER, StimPlan, FracPro, Kinetix"
 absent = "proppant"
 
@@ -319,15 +320,9 @@ tests = ["cross_egg"]
 
 [[feature]]
 area = "Grids"
-name = "Consistent / multipoint discretisations"
+name = "Consistent discretisations on a skewed grid (on a regular grid they are tested)"
 known_for = "INTERSECT"
 engine = "src/flux_nfvm.jl"
-
-[[feature]]
-area = "Grids"
-name = "Model coarsening"
-known_for = "ECLIPSE, tNavigator"
-engine = "src/coarsening"
 
 [[feature]]
 area = "Grids"
@@ -379,7 +374,14 @@ area = "Wells and facilities"
 name = "Several wells on a shared flowline and separator, marched through time together"
 known_for = "Nexus, INTERSECT with PIPESIM, tNavigator"
 tests = ["field_twins_shared_line"]
-note = "written here; wells are separate reservoir models (no interference through the rock); one node, not a general network"
+note = "written here; one node, not a general network"
+
+[[feature]]
+area = "Wells and facilities"
+name = "Wells that share rock AND a facility: interference through the reservoir under one surface limit, and wells that come on later"
+known_for = "INTERSECT with PIPESIM, Nexus, tNavigator"
+tests = ["field_shared_rock"]
+note = "written here; a model may hold several wells (well_of_stage), each with its own tubing, priority and start month; a later well starts in the rock as the earlier wells left it; conductivity-loss memory is not carried across a late start in this driver"
 
 [[feature]]
 area = "Wells and facilities"
@@ -423,25 +425,25 @@ note = "the in-timestep method cannot solve a tubing curve that bends back at lo
 
 [[feature]]
 area = "Wells and facilities"
-name = "Calibrated multi-pattern lift correlations, lift tables, artificial lift"
+name = "Calibrated multi-pattern lift correlations (Beggs and Brill, Hagedorn and Brown), pumps (ESP, rod)"
 known_for = "PIPESIM, PROSPER, Nexus"
 absent = "beggs|hagedorn|VFP|gas.?lift|ESP"
 
 [[feature]]
 area = "Wells and facilities"
-name = "Multi-segment wells"
+name = "Multi-segment wells from deck keywords (WELSEGS, COMPSEGS); built in code they are tested"
 known_for = "ECLIPSE, INTERSECT, Nexus"
 engine = "test/mswells.jl"
 
 [[feature]]
 area = "Wells and facilities"
-name = "Group and field production controls"
+name = "Group hierarchies with their own targets and guide rates, water and liquid limits, injection controls"
 known_for = "all majors"
 absent = "GCONPROD|GCONINJE|group.?control"
 
 [[feature]]
 area = "Wells and facilities"
-name = "Lift tables (VFP)"
+name = "Lift tables inside the engine's own well model (the VFPPROD keyword honoured in a deck)"
 known_for = "all majors"
 absent = "VFP"
 
@@ -478,9 +480,9 @@ engine = "src/AFISetup"
 
 [[feature]]
 area = "Input and output"
-name = "ECLIPSE binary summary / restart output"
+name = "ECLIPSE restart and grid files (UNRST, EGRID, INIT)"
 known_for = "ECLIPSE; written by tNavigator, ECHELON"
-absent = "UNRST|SMSPEC|UNSMRY"
+absent = "UNRST"
 
 [[feature]]
 area = "Input and output"
@@ -492,7 +494,7 @@ note = "plotting only; needs GLMakie, which is not installed"
 # ---- workflows ----
 [[feature]]
 area = "Workflows"
-name = "History matching with adjoint gradients"
+name = "The engine's own adjoint history-matching workflow (its gradients alone are tested)"
 known_for = "Tempest ENABLE, CMOST, tNavigator"
 engine = "src/HistoryMatching"
 
@@ -504,7 +506,7 @@ engine = "examples/workflow/rate_optimization.jl"
 
 [[feature]]
 area = "Workflows"
-name = "Ensembles for uncertainty"
+name = "The engine's own ensemble example (five-spot water flood)"
 known_for = "tNavigator, CMOST, Tempest ENABLE"
 engine = "examples/workflow/five_spot_ensemble.jl"
 
@@ -523,12 +525,6 @@ tests = ["robust_contrast_1e5", "robust_contrast_1e6"]
 
 [[feature]]
 area = "Performance and robustness"
-name = "Pressure-preconditioned (CPR) linear solver"
-known_for = "all"
-engine = "src/cpr.jl"
-
-[[feature]]
-area = "Performance and robustness"
 name = "GPU linear solver"
 known_for = "ECHELON, tNavigator, INTERSECT"
 engine = "ext/JutulDarcyCUDAExt"
@@ -540,13 +536,6 @@ name = "Distributed-memory parallel runs (MPI)"
 known_for = "all majors"
 engine = "ext/JutulDarcyPartitionedArraysExt"
 
-[[feature]]
-area = "Performance and robustness"
-name = "Nonlinear domain decomposition"
-known_for = "INTERSECT"
-engine = "src/NLDD"
-
-# ---- unconventional ----
 [[feature]]
 area = "Unconventional"
 name = "Fractured-well builder: grid, units and per-stage accounting (full-width, high-conductivity fractures, single-phase)"
@@ -581,6 +570,41 @@ tests = ["pad_interference"]
 note = "single-phase oil; no outside reference for the size of the loss; not yet combined with the shared-facility model, which keeps wells in separate rock"
 
 [[feature]]
+area = "Production engineering"
+name = "Nodal analysis: inflow curve from the reservoir model at a date, meeting point with the tubing curve, effect of lift gas"
+known_for = "PROSPER, PIPESIM, whitson+"
+tests = ["nodal_inflow"]
+note = "the inflow curve is transient (rate after a stated test time at each pressure); lift gas is added to the gas the tubing carries; no valve, injection depth or casing pressure; no outside reference"
+
+[[feature]]
+area = "Production engineering"
+name = "Gas-lift allocation: splitting a limited amount of lift gas between wells for the most oil"
+known_for = "GAP, PIPESIM, ComboCurve"
+tests = ["gaslift_allocation"]
+note = "exact for curves whose gain shrinks smoothly with gas; a well that needs a minimum of gas before it flows can be under-served"
+
+[[feature]]
+area = "Unconventional"
+name = "DFIT analysis: G-function, closure pick, efficiency, leak-off, after-closure pore pressure and permeability"
+known_for = "whitson+, ResFrac, IHS WellTest, Saphir"
+tests = ["dfit_formulas"]
+note = "formulas from the published sources in research/dfit-analysis.md, checked on their closed-form values and on a record built from them; the closure pick is the stiffening criterion, not the tangent method"
+
+[[feature]]
+area = "Unconventional"
+name = "Synthetic DFIT from the fracture model: injection, falloff to closure, then a closed fracture bleeding down into the rock"
+known_for = "ResFrac"
+tests = ["dfit_synthetic", "dfit_gradual_closure"]
+note = "contained test fracture with its own height; leak-off set by the rock's permeability; the closed fracture is stiffer by a chosen factor; walls touch all at once by default (a sharp steepening) or gradually over a chosen pressure band (contact_psi), where the stiffening pick reads above the closure stress (36 psi with a 100 psi band); no wellbore storage or friction, no radial flow in the record; read back when the analysis is given the test fracture's own height (with the pay height instead, leak-off would be 2.5 times too high): efficiency within 0.02, leak-off 2% low from the steady slope and 60% high from the whole decline, pore pressure 2% high after 72 hours"
+
+[[feature]]
+area = "Unconventional"
+name = "Well test on a fractured well: flow, shut in, pressure buildup and its log-log derivative"
+known_for = "Saphir, whitson+, tNavigator, ECLIPSE"
+tests = ["welltest_buildup"]
+note = "checked against the exact linear-flow solution and its superposition; no wellbore storage, no skin; uses thin fracture cells because the production model's 2 ft cells act as storage in tight rock"
+
+[[feature]]
 area = "Unconventional"
 name = "Fast and screening run modes for batches of runs, with a measured accuracy cost"
 known_for = "ComboCurve, whitson+ (as fast forecasting back ends)"
@@ -598,17 +622,299 @@ note = "pressure, free gas and dissolved gas are carried; the child's fractures 
 area = "Unconventional"
 name = "Fracture conductivity that falls with drawdown, permanently or reversibly"
 known_for = "GEM, tNavigator, ResFrac"
-tests = ["fracwell_conductivity_loss"]
-note = "the engine's rock tables, written into the fractured-well deck; exponential loss with the pressure drop in each fracture cell; no outside reference"
+tests = ["fracwell_conductivity_loss", "fracwell_loss_staged"]
+note = "the engine's rock tables, written into the fractured-well deck; exponential loss with the pressure drop in each fracture cell; no outside reference; across a staged start the loss is applied again, but its memory of the lowest pressure is untested there (pressure never recovers at constant bottom-hole pressure)"
 
 [[feature]]
 area = "Unconventional"
-name = "Well-interference (frac-hit) analogue with imposed connection"
+name = "Flow between a child's and a parent's fracture after a frac hit (research analogue with an imposed connection only; the growth side flags the hit, see the child-fracture rows)"
 known_for = "ResFrac, GEM"
 local = "../stage-sim/src/frac_hit.jl"
 
+# ==== STREAM 1 features (layers and depth) ====
 [[feature]]
 area = "Unconventional"
-name = "Decline-curve (Arps) fitting"
-known_for = "KAPPA, whitson, Aries / PHDwin"
-local = "../arps-core"
+name = "Parent then child in one call: the parent produces, the child is fractured into the rock it left, both produce in one model"
+known_for = "ResFrac, Kinetix with INTERSECT"
+tests = ["chain_parent_child", "chain_child_proppant", "fracwell_offcentre_well", "chain_child_factors"]
+note = "design_child_well; one-layer parent; the child's well sits where its lateral crosses the lopsided fracture; with a proppant design each wing is propped by the sand it took, otherwise a declared conductivity over a declared share of each wing; a frac hit is counted only for a fracture in line with a parent's; the parent is not damaged and takes no fluid during the child's job"
+
+[[feature]]
+area = "Geology"
+name = "Layered rock in a fractured-well model: each layer its own thickness, permeability, porosity, vertical permeability and water"
+known_for = "ECLIPSE, IMEX, tNavigator, Nexus, ResFrac"
+tests = ["fracwell_layers", "fracwell_layers_maps"]
+note = "written here on the engine's 3-D grid; one grid layer per entry (split_layers cuts thick ones); rock maps act as the areal trend on every layer (one trend for the whole stack, not one map per layer)"
+
+[[feature]]
+area = "Geology"
+name = "Depth in a fractured-well model: dip across and along the lateral, gravity, start in equilibrium"
+known_for = "ECLIPSE, IMEX, tNavigator, Nexus"
+tests = ["fracwell_depth", "well_dip_from_structure"]
+note = "planar dip only (well_dip fits the plane under a well from a structure surface and reports what the plane misses); pressure is given at the lateral's depth; no fluid contacts inside the model"
+
+[[feature]]
+area = "Unconventional"
+name = "Fracture height and landing depth in production: a fracture drains the layers it covers; the lateral can sit in any layer"
+known_for = "ResFrac, GOHFER, Kinetix"
+tests = ["fracwell_layers", "fracwell_depth", "chain_layers", "chain_layers_proppant"]
+note = "height above and below the lateral per stage, from the growth model or given; the well meets the fracture over its whole height or in its own layer only (the convergence loss is then resolved only as finely as the layers); with a proppant design each layer conducts in proportion to the pack that ended in it, summed along the fracture (one share per layer for the whole fracture, and one shape along the fracture for all layers)"
+
+[[feature]]
+area = "Unconventional"
+name = "Frac-fluid flowback and load recovery: the pumped water starts beside the fracture, flows back or soaks in, and holds oil back while it clears"
+known_for = "ResFrac, CMG GEM, tNavigator"
+tests = ["fracwell_flowback", "chain_flowback"]
+note = "written here; water placed in the cells beside the fracture from the job's own volume (the share beside the conductive length; the rest is out of the model); Corey curves and optional capillary pressure; the rock gives back 68% with no capillary pressure and 40% with 300 psi of entry pressure in the test; no imbibition hysteresis, no gel or damage, one-layer models; the engine's wellbore volume adds its own water at the wellhead (reported separately)"
+
+
+[[feature]]
+area = "Unconventional"
+name = "Proppant at closure: sand still in suspension at shut-in falls only as far as it can before the fracture closes on it"
+known_for = "ResFrac, GOHFER"
+tests = ["closure_settling"]
+note = "written here (closure.jl); closure time from the fracture's fluid efficiency by the DFIT relation, hindered settling over that time, the rest pressed into a pack in place, conducting in proportion to its sand; the default for settled proppant since 2026-11-10 (ProppantDesign settle_until_closure = false gives the settle-to-the-bottom rule); the fluid's pumping viscosity is used for the fall (a gel that breaks before closure would let sand fall further); one closure time per fracture, the whole fracture closes at once; the growth model's sand in the cell beyond the wet tip (under 0.1%) is left out"
+
+[[feature]]
+area = "Fluids"
+name = "Dry-gas fractured well (gas and immobile connate water)"
+known_for = "all majors"
+tests = ["fracwell_drygas"]
+note = "the illustrative gas table of the built-in live oil on its own; one layer, fixed bottom-hole pressure or a pressure schedule; no tubing or field drivers, no flowback, no adsorption, no non-Darcy flow; checked by material balance from the gas table (0.05%)"
+
+# ==== END STREAM 1 ====
+
+# ==== STREAM 2 features (child wells that feel the parent) ====
+[[feature]]
+area = "Fracture growth"
+name = "Both wings of a fracture solved, with different rock on the two sides of the well"
+known_for = "ResFrac, GOHFER, Kinetix"
+tests = ["child_two_wings_symmetric", "child_lopsided_growth"]
+note = "written here; one fracture through the well, perforation friction on the whole cluster rate, wings shadow only wings on their own side; in untouched rock it equals the one-wing solver to round-off; a change of the pay's closure stress along a wing drives flow and tightens containment (table scaling, exact for zero toughness, equal barriers only)"
+
+[[feature]]
+area = "Unconventional"
+name = "Child fracture next to a depleted parent: lower stress and more leak-off on the parent's side, lopsided growth, frac hit flagged"
+known_for = "ResFrac, Kinetix with INTERSECT, GOHFER"
+tests = ["child_lopsided_growth", "child_feels_parent"]
+note = "written here; stress change = biot (1 - 2 nu) / (1 - nu) x pressure change, taken as local and in the pay only; leak-off follows closure stress less pore pressure; pore pressure read from a finished single-layer parent run and frozen; no stress spreading or turning, no flow into the parent's fracture after a hit (the wing is then counted only up to the parent's tip), no published case reproduced; sources in research/parent-child-stress.md"
+# ==== END STREAM 2 ====
+
+# ==== STREAM 3 features (uncertainty runs and decline fitting) ====
+[[feature]]
+area = "Workflows"
+name = "Decline curves: Arps rate and exact cumulative, terminal exponential decline, EUR to a rate or time limit"
+known_for = "KAPPA, whitson, Aries / PHDwin, ComboCurve"
+tests = ["arps_formulas"]
+note = "written here, with the conventions of the user's arps-core package (nominal decline at the anchor, time in months of 30.4375 days, interval volumes as exact integrals); the terminal decline is a floor on the decline, imposed and not fitted"
+
+[[feature]]
+area = "Workflows"
+name = "Decline-curve fitting to monthly volumes (exponential, hyperbolic, harmonic, b up to 2; months may be left out; b may be fixed)"
+known_for = "KAPPA, whitson, Aries / PHDwin, ComboCurve"
+tests = ["arps_fit_recovers", "arps_on_simulator_forecast"]
+note = "least squares on the logarithm of interval volumes, own small bounded optimiser started from several points; read back exactly from noise-free curves; no choice of fit window or peak month, no outlier handling, no segments, no probabilistic declines. On a simulated fractured well one curve cannot follow the whole life: the first year fits b = 2 (on the bounds) and over-forecasts years six to ten by 83%, a curve through all ten years misses the first month by a factor of two"
+
+[[feature]]
+area = "Workflows"
+name = "Uncertainty runs: one well design in many draws of the rock (or of any input), with P90 / P50 / P10 of its oil"
+known_for = "tNavigator, CMOST, Tempest ENABLE, ComboCurve"
+tests = ["ensemble_percentiles", "ensemble_geology_spread"]
+note = "written here; one screening-mode run per seed, one after another; P90 is the low case; pointwise monthly percentile curves; only direction and repeatability are tested (no reference for the spread itself); with a handful of draws the percentiles move a lot between seed sets; no conditioning to wells, no history-match weighting, no sampling design, no economics"
+# ==== END STREAM 3 ====
+
+# ==== STREAM 4 features (screen-out: proppant acting back on the flow) ====
+[[feature]]
+area = "Fracture growth"
+name = "Proppant acting back on the flow: slurry thickens with concentration, a bank narrows the flow path, a packed cell lets fluid only filter through"
+known_for = "ResFrac, GOHFER, Kinetix, StimPlan"
+tests = ["screenout_formulas", "screenout_off_is_exact"]
+note = "written here, off unless proppant_feedback = true; viscosity 1 / (1 - c / cmax)^2.5 confirmed through one secondary source only (research/screen-out.md); cross-section at its mean width, split by height into clear fluid, laden slurry and bank flowing side by side; factors taken from the start of each time step"
+
+[[feature]]
+area = "Fracture growth"
+name = "Tip screen-out and a job that ends on pressure: the tip stops, the fracture widens, wellbore pressure rises to a stated limit or to what the barriers hold"
+known_for = "ResFrac, GOHFER, Kinetix, StimPlan"
+tests = ["screenout_tip", "screenout_job_stops", "screenout_clusters", "screenout_blown_up"]
+note = "written here; no measured or published screen-out was reproduced; grains and fluid move at the same speed along the fracture; a pack does not hold the walls apart when pressure falls; no bridging in perforations or wellbore; weak barriers show as height growth, not as a stopped job; the time and place of the first pack converge with the grid, the state after it from about 250 cells up (on 75 to 150 cells the pack can be breached and the tip run on: 334 m at 150 cells against 297 m at 300 and 296 m at 600 in the test's design); cells and time steps are refined together, halving the step alone is not a refinement of this solver"
+
+[[feature]]
+area = "Unconventional"
+name = "Screen-out through the design chain: pressure limit that stops the job, sand pumped against sand planned, notes that say what happened"
+known_for = "ResFrac, GOHFER, Kinetix"
+tests = ["chain_screenout"]
+note = "ProppantDesign(flow_feedback = true, net_pressure_limit_psi = ...); off by default; with it on use at least 250 cells; a net pressure close to the barrier makes the height rule run off (reported as not contained)"
+# ==== END STREAM 4 ====
+
+# ==== STREAM 5 features (history matching) ====
+[[feature]]
+area = "Workflows"
+name = "History matching of a fractured well: chosen inputs fitted to monthly oil (and gas), with a changing flowing pressure if given"
+known_for = "tNavigator, CMOST, Tempest ENABLE, ResFrac, whitson+"
+tests = ["match_formulas", "match_recovers_truth", "match_mesh_bias"]
+note = "written here; least squares on the logarithm of monthly volumes, slopes by differences (one run per input), several starting points because the misfit has more than one valley; no engine adjoint, no weights by month, no prior beyond the bounds; a history from a finer model is followed and the inputs carry the difference (measured in match_mesh_bias)"
+
+[[feature]]
+area = "Workflows"
+name = "How far a history fixes each input: products of powers of the inputs with their uncertainty, and the family of equally good fits"
+known_for = "CMOST, Tempest ENABLE, whitson+ (rate-transient analysis gives the same products)"
+tests = ["match_formulas", "match_identifiability"]
+note = "written here; singular values of the log-log slopes at the best fit, for a stated data noise; linear flow comes out as half-length x sqrt(permeability) fixed and each alone open; only the loosest direction is walked for the equally good fits"
+
+[[feature]]
+area = "Workflows"
+name = "Forecast from a matched model with the spread of the equally good fits"
+known_for = "tNavigator, CMOST, Tempest ENABLE"
+tests = ["match_forecast_spread"]
+note = "written here; the spread covers only the inputs that were varied (what is held fixed, such as conductivity or thickness, adds nothing to it); the sets are evenly spaced along the loose direction, so the range is a range, not probabilities"
+# ==== END STREAM 5 ====
+
+# ==== STREAM 6 features (lift tables) ====
+[[feature]]
+area = "Wells and facilities"
+name = "Lift tables: tabulate a tubing model, read and write the standard table (VFPPROD), produce a well through a table"
+known_for = "all majors (tables from PROSPER, PIPESIM)"
+tests = ["lift_table_formulas", "lift_table_well"]
+note = "written here, in the surface and field drivers (the engine itself ignores the keyword); oil rate, water-oil ratio, gas-oil ratio, lift gas, field units only, other conventions are refused; linear interpolation, extended along the last interval outside the table with the calls counted; a 14 x 10 table of the gas-liquid tubing model was 10% off in pressure drop, an 80 x 60 one 0.4%"
+
+[[feature]]
+area = "Wells and facilities"
+name = "Facility gas limit beside the oil limit (one common choke; the tighter limit rules)"
+known_for = "all majors"
+tests = ["field_gas_limit"]
+note = "written here; with the common choke only (pro-rata and priority rules take the oil limit alone); a limit that binds early mostly defers oil"
+# ==== END STREAM 6 ====
+
+# ==== STREAM 7 features (engine features run here for the first time) ====
+[[feature]]
+area = "Physics"
+name = "Tracers carried by a phase: conserved, arriving with the water, none where none was injected"
+known_for = "ECLIPSE, tNavigator, INTERSECT"
+tests = ["engine_tracer"]
+note = "engine feature (src/Tracers), set up through the engine's own interface, not through a deck; one phase, no dispersion or adsorption; part of the tracer stands in the wellbore, which the balance has to count"
+
+[[feature]]
+area = "Physics"
+name = "Heat conduction in rock at rest (the engine's thermal model without flow)"
+known_for = "STARS, tNavigator, ECLIPSE thermal"
+tests = ["engine_heat_conduction"]
+note = "engine feature (src/thermal); conduction against the error-function solution only: no hot or cold water moving, no wells, no heat loss to the rock above and below"
+
+[[feature]]
+area = "Physics"
+name = "Relative-permeability hysteresis: Carlson's and Killough's scanning curves, and trapping in a run"
+known_for = "ECLIPSE, IMEX, tNavigator"
+tests = ["engine_hysteresis_curves", "engine_hysteresis_trapping"]
+note = "engine feature (src/variables/relperm/hysteresis.jl); curves checked against the published rules on curves with known formulas, trapped gas in a flood against Land's rule; the engine's default Killough setting changes the rule slightly for stability (tol = 0.1; the tests use 0); capillary-pressure hysteresis is not in the engine"
+
+[[feature]]
+area = "Physics"
+name = "End-point scaling of relative permeability from a deck (ENDSCALE with SWL, SWCR, SWU, SOWCR; two-point rule)"
+known_for = "ECLIPSE, tNavigator, INTERSECT"
+tests = ["engine_endpoint_scaling"]
+note = "engine feature (src/variables/relperm/endscale.jl); a run with the keywords equals a run with the scaled table written by hand to 2e-10; where connate and critical water are equal the engine lowers the connate value by 1e-4, so scaling to a table's own end points is not exactly neutral (7e-5 here); three-point scaling, KRW-type maximum values and capillary scaling were not run"
+
+[[feature]]
+area = "Wells and facilities"
+name = "Multi-segment well: wellbore resolved in segments with friction"
+known_for = "ECLIPSE, INTERSECT, tNavigator, Nexus"
+tests = ["engine_multisegment_well"]
+note = "engine feature (src/facility/wells); single-phase flow up a vertical well: with wide tubing it equals the one-node well to 0.1%, and the friction in a segment is within 0.1% of the Darcy-Weisbach drop with the Colebrook-White factor; valves, branches, slip between phases and the deck keywords (WELSEGS) were not run"
+
+[[feature]]
+area = "Grids"
+name = "Consistent flux schemes (averaged multipoint, nonlinear two-point) run and agree with the two-point scheme where that is exact"
+known_for = "INTERSECT, tNavigator, GEM"
+tests = ["engine_consistent_schemes"]
+note = "engine feature (src/flux_nfvm.jl); checked only on a grid aligned with its permeability, where all schemes must coincide; their advantage on skewed grids or tilted permeability was not shown"
+
+[[feature]]
+area = "Grids"
+name = "Model coarsening that keeps pore volume and material balance"
+known_for = "tNavigator, Petrel workflows"
+tests = ["engine_coarsening"]
+note = "engine feature (src/coarsening); a 50-cell depletion coarsened to 5 cells: pore volume to round-off, oil at full depletion to 0.01%; upscaling of permeability in mixed rock was not tested"
+
+[[feature]]
+area = "Workflows"
+name = "Adjoint gradients of a simulated result with respect to pore volumes and transmissibilities"
+known_for = "tNavigator, INTERSECT, Tempest ENABLE (as the engine of history matching)"
+tests = ["engine_adjoint_gradients"]
+note = "engine feature (Jutul's adjoint solve); agrees with re-running the model to 1e-5 on a small two-phase case; the engine's own history-matching workflow built on it was not run"
+
+[[feature]]
+area = "Performance and robustness"
+name = "Pressure-preconditioned (CPR) linear solver: same answer as incomplete LU with less than half the linear iterations (SPE9)"
+known_for = "all majors"
+tests = ["engine_cpr_solver"]
+note = "engine feature (src/cpr.jl); it is also the default preconditioner of every deck run in this suite; compared at equal linear tolerance on the first 8 report steps"
+
+[[feature]]
+area = "Performance and robustness"
+name = "Nonlinear domain decomposition as the nonlinear solver"
+known_for = "INTERSECT (related methods), research codes"
+tests = ["engine_nldd"]
+note = "engine feature (src/NLDD); runs with a sixth of the global Newton steps, but in the first report steps of SPE1 its producer pressure is 1.3% from a tightly converged Newton run and tighter tolerances do not change that: misses the 1% bar"
+
+[[feature]]
+area = "Physics"
+name = "CO2 and brine property correlations at two points known from elsewhere"
+known_for = "ECLIPSE CO2STORE, GEM, tNavigator"
+tests = ["engine_co2_properties"]
+note = "engine feature (src/CO2Properties); CO2 density at 1 bar against the gas law with a virial correction (0.01%), water density at 250 bar (0.02%); reference values recalled, not fetched; solubility, salts and a storage run were not tested"
+# ==== END STREAM 7 ====
+
+# ==== STREAM 8 features (binary summary output) ====
+[[feature]]
+area = "Input and output"
+name = "Summary vectors of any run in field or metric units: rates, totals and bottom-hole pressure by well, field sums, calendar columns"
+known_for = "all"
+tests = ["eclout_summary_spe1", "eclout_staged_well"]
+note = "written here (summary_table); rates and pressures agree with the engine's own summary assembly to 6e-8, totals with the run's own per-stage accounting; the engine's own field-unit totals are 86,400 times too large (rate per day times seconds), which the test allows for; production and injection are separate positive vectors; no group, region, block or completion vectors"
+
+[[feature]]
+area = "Input and output"
+name = "ECLIPSE binary summary files (SMSPEC / UNSMRY) written from a run and read back, for ResInsight, Petrel and scripts"
+known_for = "ECLIPSE; written by tNavigator, ECHELON, OPM Flow"
+tests = ["eclout_record_layout", "eclout_reader_other_shapes"]
+note = "written here (write_ecl_summary, read_ecl_summary); NOT yet opened by any other program: no file from another simulator and no independent reader were on this machine, so the layout is checked against bytes assembled by hand from its published description (research/ecl-binary-format.md lists what is confirmed and what is not) and by reading back; unified files only, every time its own report step, 4-byte reals, well names up to 8 characters; no restart, grid or formatted files"
+# ==== END STREAM 8 ====
+
+# ==== STREAM 9 features (economics of a forecast) ====
+[[feature]]
+area = "Workflows"
+name = "Cash flow of a forecast before income tax: price deck and differentials, working and net revenue interest, severance and ad valorem taxes, fixed and variable costs, capital by month"
+known_for = "ComboCurve, ARIES, PHDwin, Enersight"
+tests = ["econ_cash_by_hand", "econ_against_game", "econ_on_simulated_well"]
+note = "written here; every convention is an argument with a stated default (research/economics-conventions.md); checked by arithmetic on paper and, set to the game's conventions, against the game's own Python economics to round-off; no income tax, depreciation, escalation, hedges or changing interests"
+
+[[feature]]
+area = "Workflows"
+name = "NPV, rate of return, payout, returns on investment, economic limit and EUR to it, break-even price"
+known_for = "ComboCurve, ARIES, PHDwin, Enersight"
+tests = ["econ_discounting", "econ_return_and_payout", "econ_breakeven_spread_sensitivity", "econ_against_game"]
+note = "effective annual rate at mid-month by default (end of month and nominal rates offered), capital at the start of its month; closed forms for annuities and an exponential decline; a cash flow with two rates of return is reported as such, not given one number; with a limit rule NPV can step down as price rises"
+
+[[feature]]
+area = "Workflows"
+name = "Economics across an uncertainty run (P90 / P50 / P10 of NPV, chance of loss) and one-at-a-time sensitivities"
+known_for = "ComboCurve, Enersight, tNavigator"
+tests = ["econ_breakeven_spread_sensitivity"]
+note = "one economics result per draw; P90 is the low case; uncertainty runs keep only total gas per draw, so gas is spread over the months in proportion to oil; sensitivities to oil price, gas price, capital and operating cost, not a tornado of the rock inputs"
+# ==== END STREAM 9 ====
+
+# ==== STREAM 10 features (pump schedule in steps; stop and continue) ====
+[[feature]]
+area = "Fracture growth"
+name = "Pump schedule in steps: rate, fluid viscosity and sand concentration change from step to step; pauses and the shut-in are steps with zero rate"
+known_for = "ResFrac, GOHFER, Kinetix, StimPlan, FracPro"
+tests = ["stepped_equals_one_call", "stepped_directions", "stepped_field_units"]
+note = "written here; a plan (rate, viscosity, time) fixes the grid, the cross-section table and the time steps when the job starts; one viscosity in the whole fracture at a time (no fluid front), no wellbore volume between surface and perforations, one rate per step (no ramp inside a step); with the same grid and time steps a one- or two-step schedule gives today's single call to the last digit"
+
+[[feature]]
+area = "Fracture growth"
+name = "A job that can be stopped and continued: its state is plain data, kept in memory or in a file, and a continued job equals an uninterrupted one to the last digit"
+known_for = "ResFrac (restart files), most commercial fracture simulators"
+tests = ["stepped_continued_equals_uninterrupted", "stepped_limits"]
+note = "written here; pumping returns a new job and leaves the old one as it was, so one job can be continued in two ways; the file is Julia's own Serialization format (exact, but tied to the Julia version: for keeping, not for exchange); a job that outgrows the grid or the table fixed at its start ends and says why, where a single call would be run again on a larger grid; a pressure limit ends the call, not the job"
+# ==== END STREAM 10 ====

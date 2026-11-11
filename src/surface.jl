@@ -53,6 +53,16 @@ end
 "Tubing curve for `SurfaceSpec` from single-phase liquid hydraulics."
 liquid_tubing(; kw...) = q -> liquid_pipe_drop(q; kw...)
 
+"""
+Well outputs at every accepted solver step of a result, with the lengths of those steps (s). When the engine
+cuts a report step it keeps the in-between states inside the report step's state (`:substates`); they are
+unpacked here, so a rate times its step length is the solver's own volume.
+"""
+function substep_well_outputs(model, res, forces)
+    states, dts, _ = Jutul.expand_to_ministeps(res.states, res.reports)
+    return JutulDarcy.full_well_outputs(model, states, forces), dts
+end
+
 "Averages of a per-solver-step series over each report step (time-weighted), from the solver's own step lengths."
 function report_step_average(res, series)
     out = Float64[]; j = 0
@@ -169,11 +179,11 @@ function surface_target(sf::SurfaceSpec, reservoir_psi; node_psi = sf.separator_
     return SurfaceBackPressureTarget(node_psi * PSI, si_drop(sf.tubing, sf.lift), cap, sc)
 end
 
-"Engine case for a fractured well with all stages on one well (W1)."
-function fracwell_case(s::FracWellSpec; outdir = mktempdir())
+"Engine case for a fractured-well model with every well's stages on one wellbore (W1, W2, ...; see `well_of_stage`). `active`: stages that exist yet."
+function fracwell_case(s::FracWellSpec; outdir = mktempdir(), active = nothing)
     mkpath(outdir)
     deck = joinpath(outdir, uppercase(replace(s.name, r"[^A-Za-z0-9_]" => "_")) * ".DATA")
-    L = write_fracwell_deck(s, deck; single_well = true)
+    L = write_fracwell_deck(s, deck; single_well = true, active = active)
     case, _ = capture_stdout(() -> setup_case_from_data_file(deck))
     s.conductivity_loss_per_psi > 0 && rock_regions!(case, L.rocknum)
     return case, L

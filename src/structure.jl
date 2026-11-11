@@ -153,6 +153,31 @@ function well_faults(S::Structure; origin_ft, azimuth_deg = 0.0, width_ft)
     return [(points = [local_xy(p...) for p in f.trace], multiplier = f.multiplier) for f in S.faults if f.multiplier != 1.0]
 end
 
+"""
+    well_dip(S; origin_ft, azimuth_deg, width_ft, length_ft)
+
+The plane that best fits a structure under a fractured-well model, in the model's own terms: pass
+`top_ft`, `dip_deg` (across the model) and `dip_along_deg` (along the lateral) to `FracWellSpec`. Same
+placement arguments as `well_maps`; the model runs along the lateral from `start_ft` (in the coordinate of
+the spec's `positions_ft`, zero at `origin_ft`) for `length_ft`, and `top_ft` is the plane's depth at the
+middle of that, which is where the spec wants it. `misfit_ft` is the largest distance between the surface and
+the plane under the model: what a planar model leaves out (curvature, fault steps).
+"""
+function well_dip(S::Structure; origin_ft, azimuth_deg = 0.0, width_ft, length_ft, start_ft = 0.0, samples = 21)
+    ca = cosd(azimuth_deg); sa = sind(azimuth_deg)
+    xs = range(start_ft, start_ft + length_ft, length = samples); ys = range(0.0, width_ft, length = samples)
+    xm = start_ft + length_ft / 2; ym = width_ft / 2
+    depth(x, y) = top_at(S, origin_ft[1] + x * ca - (y - ym) * sa, origin_ft[2] + x * sa + (y - ym) * ca)
+    # least squares for z = a + b (x - xm) + c (y - ym) on a regular grid of points: the three sums separate
+    n = samples^2; a = 0.0; b = 0.0; c = 0.0; sxx = 0.0; syy = 0.0
+    for x in xs, y in ys
+        z = depth(x, y); a += z / n; b += z * (x - xm); c += z * (y - ym); sxx += (x - xm)^2; syy += (y - ym)^2
+    end
+    b /= sxx; c /= syy
+    misfit = maximum(abs(depth(x, y) - (a + b * (x - xm) + c * (y - ym))) for x in xs, y in ys)
+    return (top_ft = a, dip_deg = atand(c), dip_along_deg = atand(b), misfit_ft = misfit)
+end
+
 "Product of the multipliers of every trace that the straight line between two points crosses (1 if none)."
 function crossing_multiplier(traces, x1, y1, x2, y2)
     m = 1.0
