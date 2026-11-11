@@ -1,8 +1,9 @@
 # Engine defects found here, ready to report upstream
 
 Two defects in the engine's own packages, each reproduced with the engine alone (no code of this project) on the
-installed versions, and still present on the packages' `main` branches on 2026-11-10. No existing report was found in
-either tracker. NOT yet filed.
+installed versions. On the packages' `main` branches on 2026-11-10: the GeoEnergyIO lines are unchanged (the defect is
+visible in the code itself); the JutulDarcy integration line is unchanged, but `main` was not run, so that one is shown
+on 0.3.11 only. No existing report was found in either tracker. NOT yet filed.
 
 | Report | Package | What | Reproduction |
 |---|---|---|---|

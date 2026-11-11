@@ -255,6 +255,14 @@
 #   - `chain_stepped_schedule` (2026-11-10, added while full run 19 was under way, so it is not in that record): bars before
 #     its first run; two checks changed after it, told at the test (a 1e-9 bar that should have been 1e-5, and my wrong
 #     expectation that a long pad avoids the screen-out in rock this leaky; it delays it).
+#   - After review of the second commit (2026-11-10): `chain_thick_fluid_default` pins the default sand rule (not blind) and
+#     checks that equal stage designs built separately are still grown once: adding a list (`steps`) to the stage design had
+#     made every design its own cache key, which no recorded measure could show. The closure fall of a stepped job now uses
+#     the fluid of its last sand step and its pumping time without a final shut-in.
+#   - `chain_child_factors` gained four checks after the game found its fresh-rock reference wrong for a child off the
+#     middle of the model (told at the test); the new checks' bars were written before their first run and passed. The
+#     twin comparison (`late_factor`) for a child in line with a parent stage is dominated, once it is a frac hit, by the
+#     rule that a hit wing is counted only up to the parent's fracture tip: an assumption, not computed physics.
 #   - Uncertainty runs and decline fitting (2026-11-10, STREAM 3 markers): all bars written before the first run, none changed.
 #     The two tests that run the simulator were moved to the full tier afterwards (run time only).
 include(joinpath(@__DIR__, "..", "src", "Ressim.jl"))
@@ -1785,14 +1793,25 @@ TIER == "full" && record("chain_child_factors", "Child and parent factors in one
     job = Ressim.StageDesign(rate_bpm_per_fracture = 20.0, minutes = 30.0, viscosity_cp = 5.0, shots_per_cluster = 6)
     f(off) = Ressim.child_factors(parent, rock, job; child_offset_ft = off, child_months = 12, closure_stress_psi = 7000.0, propped_fraction = 0.6, ncell = 100)
     near = f(660.0); far = f(2300.0)
+    # Added after the game found the fresh-rock reference wrong for a child that is not in the middle of the model (2026-11-10):
+    # the alone run took the smaller of the two distances to the model's ends on both sides, a narrower model than the pad's, and
+    # a far child read up to 1.43. The alone run now keeps the pad's model end to end (`edge_end_ft`). A parent of two stages and
+    # a far child in line with the first: the factor must be 1. And the twin comparison: far away, drilling late costs nothing.
+    parent2 = Ressim.FracWellSpec(name = "padf2", fluid = "oil", mesh = "coarse", months = 24, width_ft = 3600.0, perm_md = 0.002, positions_ft = [100.0, 300.0], edge_ft = 100.0,
+        half_length_ft = fill(300.0, 2), conductivity_mdft = fill(50.0, 2), center_ft = fill(700.0, 2), bhp_psi = 1000.0, dt_max_days = 15.0)
+    off_centre = Ressim.child_factors(parent2, rock, job; child_offset_ft = 2300.0, child_months = 12, closure_stress_psi = 7000.0, propped_fraction = 0.6, ncell = 100, child_position_ft = 100.0, twin = true)
+    near_twin = Ressim.child_factors(parent, rock, job; child_offset_ft = 660.0, child_months = 12, closure_stress_psi = 7000.0, propped_fraction = 0.6, ncell = 100, twin = true)
+    lay = Ressim.fracwell_layout(Ressim.FracWellSpec(positions_ft = [100.0, 300.0], half_length_ft = fill(250.0, 2), conductivity_mdft = fill(50.0, 2), edge_ft = 80.0, edge_end_ft = 260.0, mesh = "coarse"))
     by_hand = abs(near.child_factor - near.child_oil_stb / near.child_alone_oil_stb) + abs(near.parent_factor - near.parent_oil_stb / near.parent_alone_oil_stb)
     m = Ressim.job_minutes_for_length(rock, job; pay_ft = 100.0, target_ft = 300.0)
     yes(v) = v ? 0.0 : 1.0
     (checks = [chk("factors_are_their_parts", by_hand, 1e-12), chk("near_child_loses", yes(near.child_factor < 0.95), 0.5), chk("near_parent_loses", yes(near.parent_factor < 0.995), 0.5),
             chk("in_line_is_a_hit", yes(near.frac_hit == [true]), 0.5), chk("far_child_is_like_a_new_well", abs(far.child_factor - 1), 0.03), chk("far_parent_untouched", abs(far.parent_factor - 1), 0.01),
-            chk("far_is_no_hit", yes(far.frac_hit == [false]), 0.5), chk("minutes_give_the_length", m.half_length_ft / 300.0 - 1, 0.03), chk("minutes_plausible", yes(2.0 < m.minutes < 480.0), 0.5)],
-        detail = @sprintf("child stage in line with a 24-month parent: 660 ft away it makes %.2f of its own fracture in fresh rock and the parent %.3f of its oil left alone (frac hit); 2,300 ft away %.2f and %.3f. This job needs %.1f min to grow 300 ft here (gives %.0f ft). Screening mode: %.0f s per call",
-            near.child_factor, near.parent_factor, far.child_factor, far.parent_factor, m.minutes, m.half_length_ft, near.seconds))
+            chk("far_is_no_hit", yes(far.frac_hit == [false]), 0.5), chk("minutes_give_the_length", m.half_length_ft / 300.0 - 1, 0.03), chk("minutes_plausible", yes(2.0 < m.minutes < 480.0), 0.5),
+            chk("far_child_off_the_middle_is_like_a_new_well", abs(off_centre.child_factor - 1), 0.03), chk("far_child_loses_nothing_by_coming_late", abs(off_centre.late_factor - 1), 0.03),
+            chk("near_child_loses_by_coming_late", yes(near_twin.late_factor < 0.98), 0.5), chk("model_length_with_two_edges_ft", sum(lay.dx) - (80.0 + 200.0 + 260.0), 1e-9)],
+        detail = @sprintf("child stage in line with a 24-month parent: 660 ft away it makes %.2f of its own fracture in fresh rock and the parent %.3f of its oil left alone (frac hit); 2,300 ft away %.2f and %.3f. Against a twin drilled with the parent, the child at 660 ft makes %.2f (the cost of coming 24 months late) and at 2,300 ft %.2f. This job needs %.1f min to grow 300 ft here (gives %.0f ft). Screening mode: %.0f s per call, %.0f s with the twin",
+            near.child_factor, near.parent_factor, far.child_factor, far.parent_factor, near_twin.late_factor, off_centre.late_factor, m.minutes, m.half_length_ft, near.seconds, near_twin.seconds))
 end
 
 # A pump schedule in steps through the design chain. Bars written before the first run (2026-11-10).
@@ -1828,6 +1847,35 @@ TIER == "full" && record("chain_stepped_schedule", "A pad, a sand ramp and a flu
         detail = @sprintf("10 bpm for 60 min in leaky rock: clean, %.0f ft as one rate and %.0f ft as a one-step schedule. Sand at 1 ppa behind a 12 min pad: packs off at %.1f min, %.0f psi net at the end, %.0f ft; behind a 42 min pad: packs off at %.1f min, %.0f psi, %.0f ft. With a limit of %.0f psi: %s",
             plain.growth[1].half_length_ft, one.growth[1].half_length_ft, plug(short_pad), pf, short_pad.growth[1].half_length_ft, plug(long_pad), long_pad.growth[1].net_pressure_psi, long_pad.growth[1].half_length_ft, 0.6 * pf,
             join([n for n in limited.notes if occursin("was stopped", n)], "; ")))
+end
+
+# The default sand rule, pinned (added after review, 2026-11-10; not blind: this case was run in scratch when the default was
+# chosen). With thick fluid the sand is still in suspension at shut-in and the fracture has grown below the pay; the default
+# (settle until closure) leaves a pack in the pay at the well, the older rule (everything to the bottom) leaves none.
+TIER == "full" && record("chain_thick_fluid_default", "Thick fluid through the design chain: by default the sand stays where the fluid held it; the older rule drops it out of the pay", "self",
+        "the same design with the older settle-to-the-bottom rule; a stage design built twice") do
+    base = Ressim.FracWellSpec(name = "chtf", fluid = "oil", months = 6, mesh = "coarse", width_ft = 1300.0, thickness_ft = 117.0, positions_ft = [300.0], edge_ft = 300.0, half_length_ft = [1.0],
+        conductivity_mdft = [50.0], dt_max_days = 15.0)
+    rock = Ressim.RockSpec(barrier_psi = 415.0, youngs_psi = 4.0e6, leakoff_ft_sqrtmin = 0.00189)
+    job() = Ressim.StageDesign(rate_bpm_per_fracture = 15.0, minutes = 60.0, viscosity_cp = 150.0, clusters = 3, cluster_spacing_ft = 83.0, shots_per_cluster = 8)
+    sand(; kw...) = Ressim.ProppantDesign(; schedule = [(0.25, 0.5), (0.5, 1.0), (0.75, 1.5)], diameter_mm = 0.15, kw...)
+    now = Ressim.design_well(base, rock, [job()]; proppant = sand(), ncell = 200); old = Ressim.design_well(base, rock, [job()]; proppant = sand(settle_until_closure = false), ncell = 200)
+    # ten equal stages built one by one must be grown once, not ten times (the stage cache looks at what a design says)
+    many = Ressim.FracWellSpec(name = "chtf10", fluid = "oil", months = 6, mesh = "coarse", width_ft = 1300.0, thickness_ft = 117.0, positions_ft = collect(300.0:600.0:5700.0), edge_ft = 300.0,
+        half_length_ft = fill(1.0, 10), conductivity_mdft = fill(50.0, 10))
+    t1 = @elapsed Ressim.design_well(base, rock, [job()]; propped_fraction = 0.6, ncell = 200, hours_between_stages = nothing)
+    t10 = @elapsed Ressim.design_well(many, rock, [job() for _ in 1:10]; propped_fraction = 0.6, ncell = 200, hours_between_stages = nothing)
+    yes(v) = v ? 0.0 : 1.0
+    (checks = [chk("default_is_settle_until_closure", yes(sand().settle_until_closure), 0.5), chk("default_leaves_a_pack_at_the_well", yes(minimum(now.spec.conductivity_mdft) > 1.0), 0.5),
+            chk("older_rule_leaves_none_there", maximum(old.spec.conductivity_mdft[[1, 3]]), 0.01), chk("equal_stages_grown_once", yes(t10 < 3 * t1 + 2.0), 0.5),
+            chk("stepped_child_refused", yes(try
+                Ressim.design_child_well(base, rock, [Ressim.StageDesign(rate_bpm_per_fracture = 15.0, minutes = 60.0, steps = Any[(minutes = 60.0,)])]; child_offset_ft = 300.0, positions_ft = [300.0],
+                    closure_stress_psi = 7000.0, child_months = 6); false
+            catch err
+                occursin("steps", sprint(showerror, err))
+            end), 0.5)],
+        detail = @sprintf("150 cp fluid, three clusters, on rock with 415 psi barriers: conductivity at the well %.1f / %.1f / %.1f md-ft by default, %.2g / %.2g / %.2g with everything settled to the bottom. One stage grown in %.1f s, ten equal stages in %.1f s",
+            now.spec.conductivity_mdft..., old.spec.conductivity_mdft..., t1, t10))
 end
 
 # Screen-out through the design chain (stream 4's feedback wired into design_well). Bars written before the first run (2026-11-10).

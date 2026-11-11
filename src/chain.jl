@@ -65,6 +65,23 @@ Base.@kwdef struct ProppantDesign
     net_pressure_limit_psi::Float64 = NaN       # with flow_feedback: stop the job when the pressure in the casing is this far above the pay's closure stress (NaN: never)
 end
 
+"A stage design as plain values, for looking up a stage that has been grown before."
+design_key(d::StageDesign) = (d.rate_bpm_per_fracture, d.minutes, d.viscosity_cp, d.clusters, d.cluster_spacing_ft, d.shots_per_cluster, d.perf_diameter_in, d.discharge,
+    Tuple((Float64(st.minutes), Float64(get(st, :rate_bpm_per_fracture, NaN)), Float64(get(st, :viscosity_cp, NaN)), Float64(get(st, :ppa, 0.0))) for st in d.steps))
+
+"The fluid that carries the sand at shut-in: the last step that pumps sand, or the design's own viscosity."
+function sand_viscosity_cp(d::StageDesign)
+    k = findlast(st -> get(st, :ppa, 0.0) > 0, d.steps)
+    return isnothing(k) ? d.viscosity_cp : Float64(get(d.steps[k], :viscosity_cp, d.viscosity_cp))
+end
+
+"Minutes from the start of a job to the end of its last step that pumps (pauses and a shut-in at the end are left out)."
+function pumping_minutes(d::StageDesign)
+    isempty(d.steps) && return d.minutes
+    k = findlast(st -> Float64(get(st, :rate_bpm_per_fracture, d.rate_bpm_per_fracture)) > 0, d.steps)
+    return isnothing(k) ? 0.0 : sum(Float64(st.minutes) for st in d.steps[1:k])
+end
+
 "How long a stage design is pumped (minutes): its own `minutes`, or the sum of its steps."
 job_minutes(d::StageDesign) = isempty(d.steps) ? d.minutes : sum(Float64(st.minutes) for st in d.steps)
 
@@ -98,7 +115,7 @@ function pack_in_pay(proppant, d, f; pay, pump_seconds)
     common = (diameter = proppant.diameter_mm * 1e-3, density = proppant.density, pack_porosity = proppant.pack_porosity, closure_psi = proppant.closure_psi,
         stress_coefficient = proppant.stress_coefficient)
     (proppant.settling && proppant.settle_until_closure) || return propped_profile(f; pay = pay, common..., settled = proppant.settling)
-    v = settling_velocity(proppant.diameter_mm * 1e-3; density = proppant.density, fluid_density = proppant.fluid_density, mu = d.viscosity_cp * 1e-3)
+    v = settling_velocity(proppant.diameter_mm * 1e-3; density = proppant.density, fluid_density = proppant.fluid_density, mu = sand_viscosity_cp(d) * 1e-3)
     return propped_profile_at_closure(f; pay = pay, common..., v_free = v, pump_time = pump_seconds)
 end
 
@@ -156,7 +173,7 @@ function design_well(base::FracWellSpec, rock::RockSpec, designs::Vector{StageDe
             [fracture_residual(g.detail; pay = pay * FT, C_L = rock.leakoff_ft_sqrtmin * FT_SQRTMIN, wait = min(hours_between_stages, 1e6) * 3600.0,
                 pack_porosity = isnothing(proppant) ? 0.35 : proppant.pack_porosity, position = (previous.centre + previous.offsets[k]) * FT) for (k, g) in enumerate(previous.gs)]
         # the same design after the same kind of neighbour, at the same distance, gives the same fractures: solve it once
-        key = (d, isnothing(back) ? nothing : (previous.d, round(centre - previous.centre, digits = 6)))
+        key = (design_key(d), isnothing(back) ? nothing : (design_key(previous.d), round(centre - previous.centre, digits = 6)))
         fb = isnothing(proppant) || !proppant.flow_feedback ? NamedTuple() :
             (proppant_feedback = true, net_pressure_limit_psi = isnan(proppant.net_pressure_limit_psi) ? nothing : proppant.net_pressure_limit_psi)
         G = get!(cache, key) do
@@ -197,7 +214,7 @@ function design_well(base::FracWellSpec, rock::RockSpec, designs::Vector{StageDe
             h = g.half_length_ft * propped_fraction
             pk = nothing
             if !isnothing(proppant)
-                pumped_s = (G.stopped && isfinite(G.stop_minutes) ? G.stop_minutes : job_minutes(d)) * 60.0
+                pumped_s = (G.stopped && isfinite(G.stop_minutes) ? G.stop_minutes : pumping_minutes(d)) * 60.0
                 pk = pack_in_pay(proppant, d, g.detail; pay = pay * FT, pump_seconds = pumped_s)
                 h = pk.propped_half_length / FT
                 if stacked     # every layer of the stack is a zone: conductivity from the pack that ended in it
@@ -206,7 +223,7 @@ function design_well(base::FracWellSpec, rock::RockSpec, designs::Vector{StageDe
                     pz = proppant.settling && proppant.settle_until_closure ?
                         propped_at_closure(g.detail, zones; diameter = proppant.diameter_mm * 1e-3, density = proppant.density, pack_porosity = proppant.pack_porosity,
                             closure_psi = proppant.closure_psi, stress_coefficient = proppant.stress_coefficient, pump_time = pumped_s,
-                            v_free = settling_velocity(proppant.diameter_mm * 1e-3; density = proppant.density, fluid_density = proppant.fluid_density, mu = d.viscosity_cp * 1e-3)) :
+                            v_free = settling_velocity(proppant.diameter_mm * 1e-3; density = proppant.density, fluid_density = proppant.fluid_density, mu = sand_viscosity_cp(d) * 1e-3)) :
                         propped_zones(g.detail, zones; diameter = proppant.diameter_mm * 1e-3, density = proppant.density, pack_porosity = proppant.pack_porosity,
                             closure_psi = proppant.closure_psi, stress_coefficient = proppant.stress_coefficient, settled = proppant.settling)
                     # Each layer's weight is its conductivity summed along the fracture. (The cell at the well alone says little: when the
@@ -324,6 +341,7 @@ Not modelled: flow from the child's fracture into the parent's during pumping, d
 function design_child_well(parent::FracWellSpec, rock::RockSpec, designs::Vector{StageDesign}; child_offset_ft, positions_ft, closure_stress_psi, child_months,
         propped_fraction = 1.0, conductivity_mdft = nothing, proppant = nothing, biot = 0.7, ncell = 200, hit_gap_ft = 30.0)
     fracwell_vertical(parent).layered && error("design_child_well reads a one-layer parent; layers and dip are not yet followed here")
+    all(d -> isempty(d.steps), designs) || error("design_child_well does not follow a pump schedule in steps yet: give the child's stages one rate, one fluid and `minutes`")
     length(designs) == length(positions_ft) || error("one stage design per child stage position")
     0 < propped_fraction <= 1 || error("propped_fraction must be in (0, 1]")
     isempty(parent.start_month) || all(==(0), parent.start_month) || error("the parent's own stages must all start in month 0")
@@ -414,7 +432,8 @@ end
 
 """
     child_factors(parent, rock, design; child_offset_ft, child_months, closure_stress_psi, child_position_ft = <the parent's first stage>,
-                  level = :screening, propped_fraction = 1.0, conductivity_mdft = nothing, proppant = nothing, ncell = 200, hit_gap_ft = 30.0)
+                  level = :screening, propped_fraction = 1.0, conductivity_mdft = nothing, proppant = nothing, ncell = 200, hit_gap_ft = 30.0,
+                  twin = false, twin_months = 1)
 
 What a child well loses to its parent, and the parent to the child, as two numbers. `parent` is the parent's
 `FracWellSpec` (its `months` is how long it produces before the child is fractured), `design` the child's stage
@@ -426,9 +445,15 @@ design (one stage, at `child_position_ft` along the lateral). Runs, all at the s
 `child_factor` = the child's oil / its own fractures' oil in untouched rock; `parent_factor` = the parent's oil over
 the child's months with the child / without it. Also `frac_hit` per child fracture, `notes`, the four oil volumes,
 `pad` (what `design_child_well` returned) and `seconds`.
+
+The fresh-rock run keeps the pad's own model, end to end, with only the parent's stages taken out, so the child has
+the same rock around it in both runs. Mind what the factor then says: alone, the child has that whole model to itself;
+in the pad it shares it. `twin = true` adds the comparison that takes the sharing out: the same child fractured when
+the parent is only `twin_months` old (two wells drilled together). `late_factor` = the child's oil / that twin's oil
+is what it costs to drill the child late; `twin_child_oil_stb` and `twin_frac_hit` come with it.
 """
 function child_factors(parent::FracWellSpec, rock::RockSpec, design::StageDesign; child_offset_ft, child_months, closure_stress_psi, child_position_ft = parent.positions_ft[1],
-        level = :screening, propped_fraction = 1.0, conductivity_mdft = nothing, proppant = nothing, ncell = 200, hit_gap_ft = 30.0)
+        level = :screening, propped_fraction = 1.0, conductivity_mdft = nothing, proppant = nothing, ncell = 200, hit_gap_ft = 30.0, twin = false, twin_months = 1)
     fast(s) = isnothing(level) ? s : fast_spec(s; level = level)
     par = fast(parent); np = length(par.positions_ft)
     t = @elapsed begin
@@ -441,11 +466,9 @@ function child_factors(parent::FracWellSpec, rock::RockSpec, design::StageDesign
             isempty(kw[f]) || (kw[f] = kw[f][ch])
         end
         kw[:well_of_stage] = Int[]; kw[:start_month] = Int[]; kw[:months] = child_months; kw[:name] = par.name * "_child_alone"
-        # keep the model's extent along the lateral: the parent's stages no longer set it
-        x0 = minimum(pad.spec.positions_ft) - pad.spec.edge_ft; x1 = maximum(pad.spec.positions_ft) + pad.spec.edge_ft
-        cx0 = minimum(kw[:positions_ft]); cx1 = maximum(kw[:positions_ft])
-        abs((cx0 - x0) - (x1 - cx1)) < 1e-6 || push!(pad.notes, "the child's stage is not in the middle of the model along the lateral: its fresh-rock run uses the smaller of the two distances to the model's ends on both sides")
-        kw[:edge_ft] = min(cx0 - x0, x1 - cx1)
+        # keep the model's extent along the lateral exactly: the parent's stages no longer set it, so each end gets its own distance
+        x0 = minimum(pad.spec.positions_ft) - pad.spec.edge_ft; x1 = maximum(pad.spec.positions_ft) + (isnan(pad.spec.edge_end_ft) ? pad.spec.edge_ft : pad.spec.edge_end_ft)
+        kw[:edge_ft] = minimum(kw[:positions_ft]) - x0; kw[:edge_end_ft] = x1 - maximum(kw[:positions_ft])
         own = run_fracwell(FracWellSpec(; kw...))
         kp = Dict{Symbol, Any}(f => getfield(par, f) for f in fieldnames(FracWellSpec)); kp[:months] = par.months + child_months
         alone = run_fracwell(FracWellSpec(; kp...))
@@ -453,8 +476,18 @@ function child_factors(parent::FracWellSpec, rock::RockSpec, design::StageDesign
     m0 = par.months; months = m0+1:m0+child_months
     child_oil = sum(both.monthly_oil_stb[months, ch]); own_oil = sum(own.monthly_oil_stb)
     parent_with = sum(both.monthly_oil_stb[months, 1:np]); parent_alone = sum(alone.monthly_oil_stb[months, :])
-    return (child_factor = child_oil / own_oil, parent_factor = parent_with / parent_alone, frac_hit = pad.frac_hit, notes = pad.notes, child_oil_stb = child_oil, child_alone_oil_stb = own_oil,
+    out = (child_factor = child_oil / own_oil, parent_factor = parent_with / parent_alone, frac_hit = pad.frac_hit, notes = pad.notes, child_oil_stb = child_oil, child_alone_oil_stb = own_oil,
         parent_oil_stb = parent_with, parent_alone_oil_stb = parent_alone, pad = pad, seconds = t)
+    twin || return out
+    # the same child fractured when the parent has only just started: what the child makes when the two are drilled together
+    t2 = @elapsed begin
+        ky = Dict{Symbol, Any}(f => getfield(par, f) for f in fieldnames(FracWellSpec)); ky[:months] = twin_months
+        young = design_child_well(FracWellSpec(; ky...), rock, [design]; child_offset_ft = child_offset_ft, positions_ft = [child_position_ft], closure_stress_psi = closure_stress_psi,
+            child_months = child_months, propped_fraction = propped_fraction, conductivity_mdft = conductivity_mdft, proppant = proppant, ncell = ncell, hit_gap_ft = hit_gap_ft)
+        together = run_fracwell(young.spec)
+    end
+    twin_oil = sum(together.monthly_oil_stb[twin_months+1:twin_months+child_months, ch])
+    return merge(out, (late_factor = child_oil / twin_oil, twin_child_oil_stb = twin_oil, twin_frac_hit = young.frac_hit, seconds = t + t2))
 end
 
 """
@@ -466,6 +499,7 @@ fluid, found by halving the interval between 2 minutes and 8 hours; about ten gr
 half-length they give (the longest fracture of the stage).
 """
 function job_minutes_for_length(rock::RockSpec, d::StageDesign; pay_ft, target_ft, ncell = 100)
+    isempty(d.steps) || error("job_minutes_for_length sizes a job of one rate and one fluid; this design has a schedule in steps")
     above = isnan(rock.barrier_above_psi) ? rock.barrier_psi : rock.barrier_above_psi; below = isnan(rock.barrier_below_psi) ? rock.barrier_psi : rock.barrier_below_psi
     offsets = [(k - (d.clusters + 1) / 2) * d.cluster_spacing_ft for k in 1:d.clusters]
     len(minutes) = maximum(c.half_length_ft for c in grow_stage_clusters(; pay_ft = pay_ft, barrier_psi = rock.barrier_psi, barrier_above_psi = above, barrier_below_psi = below,

@@ -637,7 +637,7 @@ area = "Unconventional"
 name = "Parent then child in one call: the parent produces, the child is fractured into the rock it left, both produce in one model"
 known_for = "ResFrac, Kinetix with INTERSECT"
 tests = ["chain_parent_child", "chain_child_proppant", "fracwell_offcentre_well", "chain_child_factors"]
-note = "design_child_well; one-layer parent; the child's well sits where its lateral crosses the lopsided fracture; with a proppant design each wing is propped by the sand it took, otherwise a declared conductivity over a declared share of each wing; a frac hit is counted only for a fracture in line with a parent's; the parent is not damaged and takes no fluid during the child's job"
+note = "design_child_well; one-layer parent; the child's well sits where its lateral crosses the lopsided fracture; with a proppant design each wing is propped by the sand it took, otherwise a declared conductivity over a declared share of each wing; a frac hit is counted only for a fracture in line with a parent's, and its wing only up to the parent's tip (an assumption that dominates the loss of an in-line child); child_factors gives the loss against the child alone and, with twin = true, against a twin drilled with the parent; the parent is not damaged and takes no fluid during the child's job"
 
 [[feature]]
 area = "Geology"

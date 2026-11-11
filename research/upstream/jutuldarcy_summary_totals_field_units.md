@@ -44,6 +44,6 @@ With `:field` the rates are per day while `dt` is in seconds, so every total car
 
 ### Versions
 
-JutulDarcy 0.3.11, Julia 1.11.9, Windows. The same lines are in `src/io.jl` on `main` today.
+Reproduced on JutulDarcy 0.3.11, Julia 1.11.9, Windows. The integration line shown above is unchanged in `src/io.jl` on `main` today; I have not run `main`.
 
 *(This report was prepared with the help of an AI coding assistant; the reproduction above was run locally.)*

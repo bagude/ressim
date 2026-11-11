@@ -115,6 +115,7 @@ Base.@kwdef struct FracWellSpec
     water_relperm::Any = nothing
     water_viscosity_cp::Float64 = 0.5
     edge_ft::Float64 = 100.0               # rock beyond the first and last stage
+    edge_end_ft::Float64 = NaN             # rock beyond the LAST stage, if it differs from `edge_ft` (which is then the rock before the first)
     # Width of the fracture cells (conductivity is preserved). The cell holds rock pore volume at the fracture's pressure, so a wide
     # cell gives up fluid, gas above all, too early: 2 ft (the default until 2026-11-10) reads 1.6% high on first-month oil and 7% on
     # first-month gas at 0.005 md, 3.5% and 22% at 0.0005 md. The error is proportional to the width; 0.1 ft leaves 0.1% and 0.3%.
@@ -181,7 +182,7 @@ function fracwell_layout(s::FracWellSpec)
     ux = sort(unique(s.positions_ft))                         # stages of different laterals may share a position
     nu = length(ux)
     x0 = ux[1] - s.edge_ft
-    bounds = vcat(x0, [0.5 * (ux[i] + ux[i+1]) for i in 1:nu-1], ux[end] + s.edge_ft)
+    bounds = vcat(x0, [0.5 * (ux[i] + ux[i+1]) for i in 1:nu-1], ux[end] + (isnan(s.edge_end_ft) ? s.edge_ft : s.edge_end_ft))
     dx = Float64[]; ucol = Int[]
     for i in 1:nu
         left = graded(ux[i] - wc / 2 - bounds[i]; first = m.first, growth = m.growth, cap = m.cap)
@@ -285,7 +286,7 @@ last stage plus `edge_ft`. `origin_ft` is the map position of the point on the l
 `positions_ft` would be zero.
 """
 well_dip(S::Structure, s::FracWellSpec; origin_ft, azimuth_deg = 0.0, kw...) = well_dip(S; origin_ft = origin_ft, azimuth_deg = azimuth_deg, width_ft = s.width_ft,
-    start_ft = minimum(s.positions_ft) - s.edge_ft, length_ft = maximum(s.positions_ft) - minimum(s.positions_ft) + 2 * s.edge_ft, kw...)
+    start_ft = minimum(s.positions_ft) - s.edge_ft, length_ft = maximum(s.positions_ft) - minimum(s.positions_ft) + s.edge_ft + (isnan(s.edge_end_ft) ? s.edge_ft : s.edge_end_ft), kw...)
 
 fmt_vals(v; per = 8) = join([join([@sprintf("%.9g", x) for x in v[i:min(i + per - 1, end)]], " ") for i in 1:per:length(v)], "\n")
 

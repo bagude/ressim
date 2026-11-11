@@ -70,7 +70,9 @@ elseif cmd == "design" && length(ARGS) >= 2
     if isnothing(prop)
         @printf("declared, not predicted: conductivity %s md-ft, conductive share of created length %.0f%%\n", join(unique(base.conductivity_mdft), "/"), 100 * propped)
     else
-        println(prop.settling ? "predicted from the proppant pumped (settled into a bank at the bottom of the fracture):" : "predicted from the proppant pumped (even spread over the fracture height, no settling):")
+        println(!prop.settling ? "predicted from the proppant pumped (even spread over the fracture height, no settling):" : prop.settle_until_closure ?
+            "predicted from the proppant pumped (banked while pumping; what was still in suspension falls only until the fracture closes):" :
+            "predicted from the proppant pumped (settled into a bank at the bottom of the fracture):")
         for (i, pk) in enumerate(d.packs)
             @printf("  fracture %d: propped half-length %.0f ft, conductivity at the well %.1f md-ft, %.2f lb/ft2 at the well, pack %.1f darcy, %.0f%% of proppant in the pay\n", i,
                 pk.propped_half_length / Ressim.FT, d.spec.conductivity_mdft[i], pk.areal_lb_ft2[1], pk.pack_permeability_darcy, 100 * pk.share_in_pay)
