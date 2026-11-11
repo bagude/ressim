@@ -19,6 +19,12 @@ Base.@kwdef struct StageDesign
     shots_per_cluster::Int = 0             # perforations per cluster; 0 = no perforation friction
     perf_diameter_in::Float64 = 0.4
     discharge::Float64 = 0.7               # about 0.56 for new perforations, 0.9 once eroded by proppant
+    # Optional pump schedule in steps, pumped one after another: a list of (minutes = , rate_bpm_per_fracture = , viscosity_cp = ,
+    # ppa = ) where anything but `minutes` may be left out (the values above; no sand). A pad, a sand ramp and a flush are three
+    # or more steps; a step with zero rate is a pause. With steps, `minutes` above is not used (the job lasts as long as its
+    # steps), and the sand comes from the steps' `ppa`: the schedule of the `ProppantDesign` is not used, only its grains.
+    # `viscosity_cp` above stays the fluid that is taken to carry the sand when the fracture closes.
+    steps::Vector{Any} = Any[]
 end
 
 Base.@kwdef struct RockSpec
@@ -57,6 +63,30 @@ Base.@kwdef struct ProppantDesign
     # pay. On by default since 2026-11-10; `false` gives the older rule (everything falls to the bottom, however long that takes).
     settle_until_closure::Bool = true
     net_pressure_limit_psi::Float64 = NaN       # with flow_feedback: stop the job when the pressure in the casing is this far above the pay's closure stress (NaN: never)
+end
+
+"How long a stage design is pumped (minutes): its own `minutes`, or the sum of its steps."
+job_minutes(d::StageDesign) = isempty(d.steps) ? d.minutes : sum(Float64(st.minutes) for st in d.steps)
+
+"""
+Grow a stage whose design is a schedule in steps (`StageDesign.steps`) and return what `grow_stage_clusters` returns.
+The grid is planned for the whole schedule at its highest rate and thinnest fluid. A step that passes the pressure limit, or
+ends the job, is the last one pumped.
+"""
+function grow_stage_steps(d::StageDesign, proppant; feedback = NamedTuple(), common...)
+    rate(st) = Float64(get(st, :rate_bpm_per_fracture, d.rate_bpm_per_fracture)) * d.clusters
+    visc(st) = Float64(get(st, :viscosity_cp, d.viscosity_cp)); ppa(st) = Float64(get(st, :ppa, 0.0))
+    any(st -> rate(st) > 0, d.steps) || error("a stage's steps pump nothing: every rate is zero")
+    any(st -> ppa(st) > 0, d.steps) && isnothing(proppant) && error("a stage's steps pump sand (ppa) but no proppant design was given for the grains")
+    grains = isnothing(proppant) ? nothing : (diameter_mm = proppant.diameter_mm, density = proppant.density, fluid_density = proppant.fluid_density, pack_porosity = proppant.pack_porosity,
+        bridge = proppant.bridge, settling = proppant.settling, equilibrium_velocity_ft_s = proppant.equilibrium_velocity_ft_s)
+    job = start_stage(; common..., plan_minutes = job_minutes(d), plan_rate_bpm = maximum(rate(st) for st in d.steps), plan_viscosity_cp = minimum(visc(st) for st in d.steps if rate(st) > 0),
+        proppant = grains, feedback...)
+    for st in d.steps
+        job, ro = pump_step(job; minutes = Float64(st.minutes), rate_bpm = rate(st), viscosity_cp = visc(st), ppa = ppa(st))
+        (ro.limit_hit || ro.ended) && break
+    end
+    return finish_stage(job)
 end
 
 """
@@ -132,18 +162,24 @@ function design_well(base::FracWellSpec, rock::RockSpec, designs::Vector{StageDe
         G = get!(cache, key) do
             above = isnan(rock.barrier_above_psi) ? rock.barrier_psi : rock.barrier_above_psi; below = isnan(rock.barrier_below_psi) ? rock.barrier_psi : rock.barrier_below_psi
             d.clusters == 1 || d.cluster_spacing_ft > 0 || error("stage $i: cluster_spacing_ft must be positive when a stage has several clusters")
-            grow_stage_clusters(; pay_ft = pay, barrier_psi = rock.barrier_psi, barrier_above_psi = above, barrier_below_psi = below, toughness_psi_sqrtin = rock.toughness_psi_sqrtin,
-                youngs_psi = rock.youngs_psi, poisson = rock.poisson, viscosity_cp = d.viscosity_cp, stage_rate_bpm = d.rate_bpm_per_fracture * d.clusters,
-                minutes = d.minutes, leakoff_ft_sqrtmin = rock.leakoff_ft_sqrtmin, cluster_positions_ft = centre .+ offsets, shots = d.shots_per_cluster,
-                perf_diameter_in = d.perf_diameter_in, discharge = d.discharge, ncell = ncell, proppant = prop_kw(d), background = back, fb...)
+            isempty(d.steps) ?
+                grow_stage_clusters(; pay_ft = pay, barrier_psi = rock.barrier_psi, barrier_above_psi = above, barrier_below_psi = below, toughness_psi_sqrtin = rock.toughness_psi_sqrtin,
+                    youngs_psi = rock.youngs_psi, poisson = rock.poisson, viscosity_cp = d.viscosity_cp, stage_rate_bpm = d.rate_bpm_per_fracture * d.clusters,
+                    minutes = d.minutes, leakoff_ft_sqrtmin = rock.leakoff_ft_sqrtmin, cluster_positions_ft = centre .+ offsets, shots = d.shots_per_cluster,
+                    perf_diameter_in = d.perf_diameter_in, discharge = d.discharge, ncell = ncell, proppant = prop_kw(d), background = back, fb...) :
+                grow_stage_steps(d, proppant; feedback = fb, pay_ft = pay, barrier_psi = rock.barrier_psi, barrier_above_psi = above, barrier_below_psi = below,
+                    toughness_psi_sqrtin = rock.toughness_psi_sqrtin, youngs_psi = rock.youngs_psi, poisson = rock.poisson, leakoff_ft_sqrtmin = rock.leakoff_ft_sqrtmin,
+                    cluster_positions_ft = centre .+ offsets, shots = d.shots_per_cluster, perf_diameter_in = d.perf_diameter_in, discharge = d.discharge, ncell = ncell, background = back)
         end
         gs = G.clusters
         feels = !isempty(fb)
         if feels
             ncell < 250 && push!(notes, "stage $i: the flow feels the proppant but the grid has $ncell cells; below about 250 the pack is breached and the tip runs on")
-            G.stopped && push!(notes, @sprintf("stage %d: the job was stopped after %.1f of %.0f min (%s); %.0f%% of the planned proppant had been pumped", i, G.stop_minutes, d.minutes, G.stop_reason,
-                100 * G.detail.proppant_pumped / max(G.detail.proppant_planned, 1e-300)))
+            planned = G.detail.proppant_planned             # known for a design with one schedule; a job in steps has no plan beyond its steps
+            G.stopped && push!(notes, @sprintf("stage %d: the job was stopped after %.1f of %.0f min (%s)%s", i, G.stop_minutes, job_minutes(d), G.stop_reason,
+                isfinite(planned) && planned > 0 ? @sprintf("; %.0f%% of the planned proppant had been pumped", 100 * G.detail.proppant_pumped / planned) : "; the steps after that were not pumped"))
         end
+        isempty(d.steps) || !G.stopped || feels || push!(notes, @sprintf("stage %d: the job ended after %.1f of %.0f min (%s)", i, G.stop_minutes, job_minutes(d), G.stop_reason))
         previous = (gs = gs, d = d, centre = centre, offsets = offsets)
         if d.clusters > 1
             sh = [g.fluid_share for g in gs]
@@ -161,7 +197,7 @@ function design_well(base::FracWellSpec, rock::RockSpec, designs::Vector{StageDe
             h = g.half_length_ft * propped_fraction
             pk = nothing
             if !isnothing(proppant)
-                pumped_s = (feels && G.stopped ? G.stop_minutes : d.minutes) * 60.0
+                pumped_s = (G.stopped && isfinite(G.stop_minutes) ? G.stop_minutes : job_minutes(d)) * 60.0
                 pk = pack_in_pay(proppant, d, g.detail; pay = pay * FT, pump_seconds = pumped_s)
                 h = pk.propped_half_length / FT
                 if stacked     # every layer of the stack is a zone: conductivity from the pack that ended in it
@@ -188,10 +224,10 @@ function design_well(base::FracWellSpec, rock::RockSpec, designs::Vector{StageDe
                         G.stop_minutes, G.stop_reason, G.wellbore_net_psi) :
                     proppant.settling ? ": no proppant bank stands inside the pay (it settled below the pay, or too little was pumped)" :
                     ": no part of the fracture holds a full grain of proppant; raise the concentration or shorten the pad"))
-                fall_ft = settling_velocity(proppant.diameter_mm * 1e-3; density = proppant.density, mu = d.viscosity_cp * 1e-3) * d.minutes * 60 / FT
+                fall_ft = settling_velocity(proppant.diameter_mm * 1e-3; density = proppant.density, mu = d.viscosity_cp * 1e-3) * job_minutes(d) * 60 / FT
                 if k == 1                                      # the same for every cluster of a stage: say it once
                     if !proppant.settling
-                        fall_ft = settling_velocity(proppant.diameter_mm * 1e-3; density = proppant.density, fluid_density = proppant.fluid_density, mu = d.viscosity_cp * 1e-3) * d.minutes * 60 / FT
+                        fall_ft = settling_velocity(proppant.diameter_mm * 1e-3; density = proppant.density, fluid_density = proppant.fluid_density, mu = d.viscosity_cp * 1e-3) * job_minutes(d) * 60 / FT
                         fall_ft > g.height_at_well_ft && push!(notes, @sprintf("stage %d: a grain would settle about %.0f ft during pumping, more than the %.0f ft fracture height; it will bank at the bottom, so the even spread assumed here overstates propped length",
                             i, fall_ft, g.height_at_well_ft))
                     end

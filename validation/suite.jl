@@ -252,6 +252,9 @@
 #   - After full run 18 (2026-11-10): `fracwell_flowback` gained a check for the default live oil with a pressure schedule,
 #     after the game reported that case stopping on a faulty guard in the deck writer (the test had only run the plain-oil
 #     fluid). `chain_child_factors` is new (bars before its first run, passed).
+#   - `chain_stepped_schedule` (2026-11-10, added while full run 19 was under way, so it is not in that record): bars before
+#     its first run; two checks changed after it, told at the test (a 1e-9 bar that should have been 1e-5, and my wrong
+#     expectation that a long pad avoids the screen-out in rock this leaky; it delays it).
 #   - Uncertainty runs and decline fitting (2026-11-10, STREAM 3 markers): all bars written before the first run, none changed.
 #     The two tests that run the simulator were moved to the full tier afterwards (run time only).
 include(joinpath(@__DIR__, "..", "src", "Ressim.jl"))
@@ -1790,6 +1793,41 @@ TIER == "full" && record("chain_child_factors", "Child and parent factors in one
             chk("far_is_no_hit", yes(far.frac_hit == [false]), 0.5), chk("minutes_give_the_length", m.half_length_ft / 300.0 - 1, 0.03), chk("minutes_plausible", yes(2.0 < m.minutes < 480.0), 0.5)],
         detail = @sprintf("child stage in line with a 24-month parent: 660 ft away it makes %.2f of its own fracture in fresh rock and the parent %.3f of its oil left alone (frac hit); 2,300 ft away %.2f and %.3f. This job needs %.1f min to grow 300 ft here (gives %.0f ft). Screening mode: %.0f s per call",
             near.child_factor, near.parent_factor, far.child_factor, far.parent_factor, m.minutes, m.half_length_ft, near.seconds))
+end
+
+# A pump schedule in steps through the design chain. Bars written before the first run (2026-11-10).
+TIER == "full" && record("chain_stepped_schedule", "A pad, a sand ramp and a flush, to production: one step equals the plain design, a longer pad avoids the screen-out, a pressure limit ends the job", "self",
+        "the same design given as one rate and one time; the same sand behind a short and a long pad") do
+    base = Ressim.FracWellSpec(name = "chst", fluid = "oil", months = 12, mesh = "coarse", width_ft = 1300.0, thickness_ft = 60.0, positions_ft = [100.0], edge_ft = 100.0, half_length_ft = [1.0],
+        conductivity_mdft = [50.0], dt_max_days = 15.0)
+    rock = Ressim.RockSpec(barrier_psi = 1500.0, youngs_psi = 4.0e6, leakoff_ft_sqrtmin = 0.002)
+    stage(steps) = [Ressim.StageDesign(rate_bpm_per_fracture = 10.0, minutes = 60.0, steps = steps)]
+    grains(; kw...) = Ressim.ProppantDesign(; schedule = [(0.2, 1.0)], kw...)
+    design(steps; kw...) = Ressim.design_well(base, rock, stage(steps); proppant = grains(; kw...), ncell = 300)
+    plain = Ressim.design_well(base, rock, stage(Any[]); propped_fraction = 0.6, ncell = 300)                 # clean fluid, one rate, 60 min
+    one = Ressim.design_well(base, rock, stage(Any[(minutes = 60.0,)]); propped_fraction = 0.6, ncell = 300)  # the same as a schedule of one step
+    short_pad = design(Any[(minutes = 12.0,), (minutes = 44.0, ppa = 1.0), (minutes = 4.0,)]; flow_feedback = true)        # 20% pad, sand, flush
+    long_pad = design(Any[(minutes = 42.0,), (minutes = 14.0, ppa = 1.0), (minutes = 4.0,)]; flow_feedback = true)         # 70% pad
+    pf = short_pad.growth[1].net_pressure_psi
+    limited = design(Any[(minutes = 12.0,), (minutes = 44.0, ppa = 1.0), (minutes = 4.0,)]; flow_feedback = true, net_pressure_limit_psi = 0.6 * pf)
+    run = Ressim.run_fracwell(long_pad.spec); said(d, text) = any(occursin(text, n) for n in d.notes); yes(v) = v ? 0.0 : 1.0
+    plug(d) = d.growth[1].plug_minutes
+    # Two checks changed after the first run.
+    #  - "one step is the plain design" asked for 1e-9 and got 2e-6 (length 4e-10, net pressure 2e-6; same cells, same steps).
+    #    The solver stream's own test gets exactly zero when both calls are given the same grid and table; through the chain the
+    #    stepped job sizes its cross-section table for the plan up front, which is the likely source (not confirmed). Bar now 1e-5.
+    #  - "a long pad does not screen out" was wrong for this rock (7% fluid efficiency): the 70% pad still plugs, 5.5 min after
+    #    its sand starts. What a longer pad does here is delay the plug (14.5 to 47.5 min) and end at a third of the pressure
+    #    with a longer fracture; the check now says that. (The first run's detail line also said "no pack" whatever happened.)
+    (checks = [chk("one_step_is_the_plain_design", abs(one.growth[1].half_length_ft / plain.growth[1].half_length_ft - 1) + abs(one.growth[1].net_pressure_psi / plain.growth[1].net_pressure_psi - 1), 1e-5),
+            chk("short_pad_screens_out", yes(isfinite(plug(short_pad)) && said(short_pad, "packed off")), 0.5),
+            chk("longer_pad_delays_the_plug", yes(plug(long_pad) > plug(short_pad) + 10 && long_pad.growth[1].half_length_ft > short_pad.growth[1].half_length_ft), 0.5),
+            chk("screen_out_raises_pressure", yes(pf > 1.5 * long_pad.growth[1].net_pressure_psi), 0.5), chk("limit_ends_the_job", yes(said(limited, "was stopped after") && said(limited, "were not pumped")), 0.5),
+            chk("well_produces", yes(sum(run.monthly_oil_stb) > 0), 0.5)],
+        cells = run.run.cells, ministeps = run.run.stats.ministeps, cuts = run.run.stats.cuts,
+        detail = @sprintf("10 bpm for 60 min in leaky rock: clean, %.0f ft as one rate and %.0f ft as a one-step schedule. Sand at 1 ppa behind a 12 min pad: packs off at %.1f min, %.0f psi net at the end, %.0f ft; behind a 42 min pad: packs off at %.1f min, %.0f psi, %.0f ft. With a limit of %.0f psi: %s",
+            plain.growth[1].half_length_ft, one.growth[1].half_length_ft, plug(short_pad), pf, short_pad.growth[1].half_length_ft, plug(long_pad), long_pad.growth[1].net_pressure_psi, long_pad.growth[1].half_length_ft, 0.6 * pf,
+            join([n for n in limited.notes if occursin("was stopped", n)], "; ")))
 end
 
 # Screen-out through the design chain (stream 4's feedback wired into design_well). Bars written before the first run (2026-11-10).

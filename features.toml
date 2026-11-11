@@ -682,6 +682,14 @@ known_for = "all majors"
 tests = ["fracwell_drygas"]
 note = "the illustrative gas table of the built-in live oil on its own; one layer, fixed bottom-hole pressure or a pressure schedule; no tubing or field drivers, no flowback, no adsorption, no non-Darcy flow; checked by material balance from the gas table (0.05%)"
 
+
+[[feature]]
+area = "Unconventional"
+name = "Pump schedule in steps through the design chain: pad, sand ramp and flush with their own minutes, rate, fluid and sand, to production"
+known_for = "ResFrac, GOHFER, Kinetix, FracPro"
+tests = ["chain_stepped_schedule"]
+note = "StageDesign(steps = [...]); the solver's stepped job (stream 10) behind design_well; a step that passes the pressure limit is the last one pumped; a viscosity change acts in the whole fracture at once (no fluid front), and sand arrives at the perforations the moment it is pumped (no wellbore volume)"
+
 # ==== END STREAM 1 ====
 
 # ==== STREAM 2 features (child wells that feel the parent) ====

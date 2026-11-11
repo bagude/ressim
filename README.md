@@ -52,6 +52,7 @@ Fracture growth (written here; the engine has none):
 - A pump schedule in steps, and a job that can be stopped and continued (`start_stage`, `pump_step`, `finish_stage`,
   `save_stage`, `load_stage` in `src/multifrac.jl`): each step has its own minutes, rate, viscosity and sand; the grid is
   fixed by a plan at the start, so a job continued step by step equals the same schedule run in one call, exactly.
+  In a design: `StageDesign(...; steps = [(minutes = 12,), (minutes = 44, ppa = 1.0), (minutes = 4,)])`.
 - `src/closure.jl` where the sand is when the fracture closes: suspended sand falls only until closure (set by the
   fracture's fluid efficiency), the rest stays where it is. Optional (`settle_until_closure` in a `ProppantDesign`).
 - `src/parentchild.jl` a child stage beside a depleted parent: both wings of each fracture are solved, lower stress

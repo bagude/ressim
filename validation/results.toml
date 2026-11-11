@@ -11,7 +11,7 @@ reference = "closed-form linear diffusion (series solution)"
 id = "exact_slab_inf"
 ministeps = 333
 title = "Single-phase depletion, infinite-acting (square-root-of-time flow)"
-seconds = 19.94
+seconds = 20.31
 cuts = 0
 
     [[test.checks]]
@@ -89,7 +89,7 @@ reference = "closed-form linear diffusion (series solution)"
 id = "robust_contrast_1e5"
 ministeps = 334
 title = "Robustness: 1e5 mD strip against 2.5 microdarcy rock"
-seconds = 0.11
+seconds = 0.13
 cuts = 0
 
     [[test.checks]]
@@ -120,7 +120,7 @@ reference = "closed-form linear diffusion (series solution)"
 id = "robust_contrast_1e6"
 ministeps = 334
 title = "Robustness: 1e6 mD strip against 2.5 microdarcy rock"
-seconds = 0.11
+seconds = 0.13
 cuts = 0
 
     [[test.checks]]
@@ -149,7 +149,7 @@ status = "pass"
 id = "exact_buckley_leverett"
 ministeps = 1000
 reference = "Buckley-Leverett / Welge closed form"
-seconds = 9.88
+seconds = 9.93
 kind = "exact"
 detail = "L1 at 100 cells 0.0660, at 1000 cells 0.0117; exact front at 0.7186"
 title = "Two-phase water flood, Buckley-Leverett front"
@@ -253,7 +253,7 @@ detail = "efficiency 1.2%; the limit assumes 0%, so the solver should sit slight
 reference = "closed form when nearly all fluid leaks off: L = q sqrt(t) / (pi C h)"
 id = "growth_leakoff_limit"
 title = "Fracture growth with heavy leak-off: length against the leak-off limit"
-seconds = 0.27
+seconds = 0.28
 
     [[test.checks]]
     name = "length"
@@ -301,7 +301,7 @@ status = "pass"
 reference = "the constant-height model above (checked against published constants)"
 id = "height_contained_limit"
 title = "Height growth with unbreakable barriers: must equal the constant-height model"
-seconds = 1.03
+seconds = 1.06
 
     [[test.checks]]
     name = "length"
@@ -425,7 +425,7 @@ detail = "2 to 10 contained fractures, spacing 0.01 to 5 heights: smallest eigen
 reference = "Sneddon's centre-line formula; the height-weighted value by two independent routes; positive-definite coupling"
 id = "shadow_kernel"
 title = "Stress shadow of one fracture on its neighbour: formula checks"
-seconds = 0.88
+seconds = 0.92
 
     [[test.checks]]
     name = "centre_line"
@@ -483,7 +483,7 @@ status = "pass"
 reference = "the single-fracture height-growth solver, itself checked against exact and published results"
 id = "multifrac_one_cluster"
 title = "A stage with one cluster must equal the single-fracture solver (with barriers, leak-off and proppant)"
-seconds = 4.07
+seconds = 4.52
 
     [[test.checks]]
     name = "length_contained"
@@ -553,7 +553,7 @@ detail = "15 m apart in a 30 m pay the shadow factor is 0.483: half-length 2821 
 reference = "similarity solution with the modulus raised by the shadow factor (exact for two contained, identical fractures)"
 id = "multifrac_pair_stiffer"
 title = "Two identical fractures side by side: must grow like one fracture in stiffer rock"
-seconds = 2.77
+seconds = 3.24
 
     [[test.checks]]
     name = "length"
@@ -587,7 +587,7 @@ status = "pass"
 reference = "the limit of no interaction (a lone fracture on the same grid with the same flow scheme)"
 id = "multifrac_far_apart"
 title = "Three clusters far apart: equal shares, each the same as a fracture alone"
-seconds = 2.29
+seconds = 2.56
 
     [[test.checks]]
     name = "share"
@@ -612,7 +612,7 @@ detail = "shares 0.6664 and 0.3336; friction 300 MPa against 2.9 MPa net pressur
 reference = "friction-dominated limit: rate ratio equals the ratio of perforation counts"
 id = "multifrac_limited_entry"
 title = "Two clusters with 6 and 3 perforations, friction far above net pressure: the split must follow the perforation count"
-seconds = 1.01
+seconds = 1.06
 
     [[test.checks]]
     name = "split"
@@ -632,7 +632,7 @@ detail = "30 m pay, 60 bpm for 60 min. Three clusters 7.5 m apart: shares [0.468
 reference = "its own conditions: mirror symmetry, reversal, fluid account per fracture, direction of every effect, mesh sensitivity"
 id = "multifrac_interaction"
 title = "Three and five clusters close together: the middle ones are squeezed, perforation friction evens the split"
-seconds = 18.02
+seconds = 18.56
 
     [[test.checks]]
     name = "mirror"
@@ -692,7 +692,7 @@ detail = "no friction: areas [3418, 2352, 2390, 2352, 3418] m2 (reference 3359, 
 reference = "Protasov, Peirce & Dontsov (ARMA 2018) Figs 3, 4: ILSA footprint areas at 351 s (digitised, about 1%)"
 id = "multifrac_published"
 title = "Five fractures 20 m apart against a planar-3-D reference (ILSA), with no perforation friction and with equal rates"
-seconds = 11.3
+seconds = 11.91
 
     [[test.checks]]
     name = "share_outer"
@@ -730,7 +730,7 @@ status = "pass"
 id = "chain_clusters_to_production"
 ministeps = 109
 reference = "its own conditions: shares add up, outer clusters mirror each other in growth and in production, strong friction evens the split"
-seconds = 24.32
+seconds = 24.27
 kind = "self"
 detail = "three clusters 40 ft apart at 45 bpm per stage: 24 shots each gives shares [0.356, 0.289, 0.356] and half-lengths [493, 391, 493] ft; 4 shots each gives [0.334, 0.332, 0.334] and [457, 452, 457] ft"
 title = "Stages with several clusters to production in one call: weak against strong perforation friction"
@@ -768,7 +768,7 @@ detail = "30 m pay, barrier 4 MPa above and 2 MPa below, 1.5 MPa net pressure: t
 reference = "the symmetric three-layer formulas; stress intensity read from the opening at both tips; area by two routes"
 id = "layers_section_formulas"
 title = "Height in layered rock: cross-section formulas with unequal barriers, and equal barriers against the three-layer formulas"
-seconds = 2.15
+seconds = 2.16
 
     [[test.checks]]
     name = "equal_top"
@@ -822,7 +822,7 @@ detail = "A: 3.76 ft up and 1.62 ft down at 200 psi, 140 and 33 ft at 600 psi (p
 reference = "S. Liu, Texas A&M dissertation (2017), Tables 2 to 7, printed values"
 id = "layers_published"
 title = "Height in layered rock with fluid weight: two published cases (three layers; six layers with a jump through a weak layer)"
-seconds = 0.33
+seconds = 0.32
 
     [[test.checks]]
     name = "A_up_200"
@@ -871,7 +871,7 @@ status = "pass"
 reference = "the symmetric height-growth solver (same equations, different cross-section code)"
 id = "layers_equal_barriers"
 title = "Growth in layered rock with equal barriers must equal the three-layer height-growth solver"
-seconds = 1.2
+seconds = 1.41
 
     [[test.checks]]
     name = "length"
@@ -901,7 +901,7 @@ detail = "98 ft pay, 870 psi barrier above and 435 psi below, 60 min at 25 bpm p
 reference = "its own conditions: fluid account, mirror image, between the two equal-barrier cases, table sensitivity"
 id = "layers_unequal_barriers"
 title = "Growth with a strong barrier above and a weak one below: grows into the weak side, mirrors when the rock is turned over"
-seconds = 2.9
+seconds = 2.89
 
     [[test.checks]]
     name = "balance"
@@ -946,7 +946,7 @@ detail = "shares [0.337, 0.327, 0.337]; growth above / below the pay at the well
 reference = "its own conditions: outer clusters identical, fluid account per fracture, every fracture grows into the weak side"
 id = "layers_with_clusters"
 title = "Three clusters between unequal barriers: mirror image and fluid account"
-seconds = 1.42
+seconds = 1.45
 
     [[test.checks]]
     name = "mirror"
@@ -971,7 +971,7 @@ detail = "three clusters 10 m apart, the earlier stage 20 m away: shares [0.343,
 reference = "exact for a uniform background (same fracture, wellbore pressure higher by the background); otherwise direction of each effect and the fluid account"
 id = "stage_shadow"
 title = "Stress left by an earlier stage: a uniform background changes nothing but the pressure; a nearby open fracture pushes fluid to the far clusters"
-seconds = 5.82
+seconds = 5.79
 
     [[test.checks]]
     name = "uniform_same_length"
@@ -1010,7 +1010,7 @@ detail = "stages 150 ft apart, three clusters each, two hours between stages: sh
 reference = "its own conditions: first stage identical with and without the effect; in later stages the cluster next to the earlier stage takes less than the far one"
 id = "chain_stage_shadow"
 title = "Stages pumped one after another: the first is unaffected, later ones lean away from the stage before"
-seconds = 4.82
+seconds = 4.68
 
     [[test.checks]]
     name = "first_stage_same"
@@ -1039,7 +1039,7 @@ detail = "512 x 512 nodes, range 8 cells, three seeds: worst variogram miss 0.00
 reference = "a direct Fourier sum; the variogram model the field was generated from (statistical tolerance); interpolation of a plane"
 id = "geology_fields"
 title = "Rock properties as random fields: the variogram asked for is the variogram obtained; reproducible; sampled anywhere"
-seconds = 1.75
+seconds = 1.71
 
     [[test.checks]]
     name = "transform"
@@ -1098,7 +1098,7 @@ detail = "2 degree dip: 209.5 ft deeper after 6,000 ft down dip, 3.6e-12 ft alon
 reference = "plane geometry by hand: depth gain along a dipping plane, crossing position, parabolic throw along the trace, exponential die-out"
 id = "structure_surface"
 title = "Top-of-pay surface with faults: dip along a lateral, where a fault is crossed and by how much, base from gross thickness"
-seconds = 0.13
+seconds = 0.12
 
     [[test.checks]]
     name = "dip_ft"
@@ -1180,7 +1180,7 @@ status = "pass"
 id = "fracwell_faults"
 ministeps = 187
 reference = "its own conditions: a multiplier of one changes nothing; two sealing faults leave the strip between them; leakier faults give more"
-seconds = 5.82
+seconds = 5.73
 kind = "self"
 detail = "12-month oil: 13677 stb without faults; 2534 with two sealing faults 90 ft either side of the lateral (a model of just that strip gives 2534); 9542 when they leak at 1%"
 title = "Sealing and leaky faults in a fractured-well model"
@@ -1213,7 +1213,7 @@ detail = "bubble point 4015 psia; at 3,015 psia the sample has swollen to 1.140 
 reference = "the fluid tables themselves, by hand; mass conservation"
 id = "pvt_lab"
 title = "Laboratory tests on the built-in live oil: constant-composition expansion, differential liberation, separator test"
-seconds = 0.27
+seconds = 0.26
 
     [[test.checks]]
     name = "bubble_point"
@@ -1391,7 +1391,7 @@ detail = "25 bbl in 5 min into 0.001 md rock, 40 ft fracture: shut-in at 7249 ps
 reference = "the inputs of the synthetic test itself; closure is sharp by construction, the other numbers are not built in"
 id = "dfit_synthetic"
 title = "A synthetic DFIT from the fracture model, read with the standard analysis: what comes back and what does not"
-seconds = 2.7
+seconds = 2.81
 
     [[test.checks]]
     name = "closure_pressure"
@@ -1461,7 +1461,7 @@ detail = "walls touching all at once: the rate of fall against G jumps 2.98 time
 reference = "the same test with walls that touch all at once"
 id = "dfit_gradual_closure"
 title = "A synthetic DFIT whose walls touch gradually: no sudden steepening, and the stiffening pick lands above the closure stress"
-seconds = 4.04
+seconds = 3.98
 
     [[test.checks]]
     name = "same_until_first_contact_psi"
@@ -1587,7 +1587,7 @@ id = "cross_spe1"
 ministeps = 129
 notes = []
 reference = "OPM Flow results shipped with the benchmark"
-seconds = 1.35
+seconds = 1.4
 kind = "cross"
 detail = "producer pressure misses its 1% bar. Diagnostic 2026-11-09: capping our timestep at 10 and 2 days moves the difference to 2.2% and 2.5% (further from the reference), and tighter tolerances leave it at 1.7%, so it is not our timestep or tolerance error. The difference sits around the producer's switch to its pressure limit. Unresolved without a fine-step independent reference."
 title = "SPE1: three-phase black oil, gas injection (deck input)"
@@ -1620,7 +1620,7 @@ id = "runner_summary_units"
 ministeps = 129
 notes = []
 reference = "the deck's own rate control"
-seconds = 0.63
+seconds = 0.62
 kind = "exact"
 title = "Deck runner: field-unit summary file (SPE1 producer held at 20,000 stb/d)"
 cuts = 0
@@ -1642,7 +1642,7 @@ id = "fracwell_exact_standard"
 ministeps = 343
 notes = []
 reference = "closed-form linear diffusion (series solution), worst of three stages"
-seconds = 4.47
+seconds = 4.37
 kind = "exact"
 title = "Fractured well builder, standard mesh: full-width fractures, single-phase oil"
 cuts = 0
@@ -1669,7 +1669,7 @@ id = "fracwell_exact_fine"
 ministeps = 343
 notes = []
 reference = "closed-form linear diffusion (series solution), worst of three stages"
-seconds = 1.8
+seconds = 1.73
 kind = "exact"
 title = "Fractured well builder, fine mesh: full-width fractures, single-phase oil"
 cuts = 0
@@ -1696,7 +1696,7 @@ id = "fracwell_blackoil"
 ministeps = 345
 notes = []
 reference = "symmetry: identical stages must produce the same"
-seconds = 5.63
+seconds = 5.27
 kind = "self"
 detail = "coarse mesh, 24 months, per stage: 3294 stb oil, 10293 Mscf gas, 8.1 stb water"
 title = "Fractured well builder: three identical stages, live oil with gas and water, 3,500 psi drawdown"
@@ -1725,7 +1725,7 @@ detail = "proppant front at 1545 m of a 2600 m fracture after a 30% pad"
 reference = "with no leak-off and no slip the fluid keeps its order, so the fracture volume ahead of the proppant front equals the pad volume"
 id = "proppant_transport"
 title = "Proppant carried with the slurry: pad-volume rule, conservation, concentration behind the front"
-seconds = 0.63
+seconds = 0.62
 
     [[test.checks]]
     name = "pad_rule"
@@ -1788,7 +1788,7 @@ detail = "closed 30 m slot, 10% suspension: bank ends 5.00 m high after 2040 s; 
 reference = "Kynch's solution for a uniform suspension in a closed slot; the steady settling line in a slot with uniform flow; conservation"
 id = "proppant_settling"
 title = "Proppant settling into a bank: closed slot against the exact solution, flowing slot, conservation in a growth run"
-seconds = 3.02
+seconds = 2.82
 
     [[test.checks]]
     name = "hindered_speed"
@@ -1866,7 +1866,7 @@ status = "pass"
 id = "chain_settling_to_production"
 ministeps = 109
 reference = "its own conditions: direction of each effect, and the chain runs to production"
-seconds = 15.2
+seconds = 14.08
 kind = "self"
 detail = "water, 600 psi barriers: 100% of the proppant banked during pumping, 99% of it ends in the pay, propped half-length 300 ft, 44.1 md-ft at the well (even spread: 300 ft, 2.9 md-ft; with no carry-over of grains above the bank: 217 ft, 44.1 md-ft); 300 psi below: 96% in the pay; 30 cp fluid: 96% banked"
 title = "Proppant bank to production: a weak barrier below the pay loses proppant out of zone; a thicker fluid banks less"
@@ -1898,7 +1898,7 @@ status = "pass"
 id = "fracwell_conductivity_loss"
 ministeps = 187
 reference = "its own conditions: no loss reproduces the plain run; more loss gives less oil; after a hard drawdown the permanent loss costs later production, the reversible one does not"
-seconds = 15.63
+seconds = 15.04
 kind = "self"
 detail = "12 months at 1000 psi: 4328 stb with no loss, 3891 with 2e-4 per psi, 3118 with 5e-4 per psi. After two months at 500 psi, months 3 to 12 at 3000 psi give 776 stb if the loss is permanent and 975 if it recovers (1272 had the well never been drawn down hard)"
 title = "Fracture conductivity that falls as the well is drawn down, and stays down"
@@ -1947,7 +1947,7 @@ detail = "half-lengths [492, 487, 487, 487, 487, 492] ft, shares [0.168, 0.166, 
 reference = "regression test for a defect: the tip estimate returned infinity where pressure rises towards the tip"
 id = "multifrac_tip_position"
 title = "Six clusters with limited entry (a reported case): lengths stay finite and steady"
-seconds = 9.17
+seconds = 8.76
 
     [[test.checks]]
     name = "finite"
@@ -1975,7 +1975,7 @@ status = "pass"
 id = "chain_proppant_to_production"
 ministeps = 109
 reference = "its own conditions: propped length inside created length, more proppant gives more conductivity, the result is used unchanged by the well model"
-seconds = 9.08
+seconds = 8.83
 kind = "self"
 detail = "8 bpm per fracture, 60 min, 0.2 mm sand from 30% of the job: created 256 ft, propped 241 ft; conductivity at the well 1.3 md-ft at 0.5 lb/gal and 4.9 md-ft at 2 lb/gal; 6-month oil 1129 stb per stage"
 title = "Rock, pumping and proppant to production: propped length and conductivity predicted"
@@ -2007,7 +2007,7 @@ status = "pass"
 id = "chain_design_to_production"
 ministeps = 109
 reference = "its own conditions: a bigger job gives a longer fracture and more oil; an over-long fracture is cut and reported"
-seconds = 12.08
+seconds = 11.85
 kind = "self"
 detail = "4 / 8 / 12 bpm per fracture for 60 min: created half-length 130 / 256 / 379 ft, 6-month oil 438 / 814 / 1174 stb (conductivity and the 60% conductive share are declared, not predicted)"
 title = "Rock and pumping to production in one call: three job sizes on one well"
@@ -2039,7 +2039,7 @@ status = "pass"
 id = "fracwell_layers"
 ministeps = 76
 reference = "the one-layer model of the same rock; separate one-layer runs of each layer"
-seconds = 3.11
+seconds = 3.14
 kind = "self"
 detail = "12-month oil: one 100 ft layer 3568 stb, the same rock as three layers 3568; a 60 ft and a 40 ft layer alone 3109 + 911, together with no vertical flow 4028; fracture in the upper layer only 3110, and 3320 when the rock lets a tenth of its permeability through vertically"
 title = "Layered well model: identical layers equal one layer, layers that do not talk add up, a short fracture drains only its own layer"
@@ -2076,7 +2076,7 @@ status = "pass"
 id = "fracwell_depth"
 ministeps = 76
 reference = "the fluid's own pressure gradient; the full-height connection of the same model"
-seconds = 8.25
+seconds = 8.85
 kind = "self"
 detail = "model 3 degrees across and 1 degree along: cell centres span 119 ft of depth, pressure gradient 0.3726 psi/ft, after a year at rest the pressure has moved 0.0033 psi; cell depths are within 0.24 ft of the plane (the engine misplaces tops on graded cells; bound 1.05 ft); 12-month oil flat 3568 stb, dipping 3567. Well joined to a 5 md-ft fracture over its whole height 3062 stb, in the middle quarter only 2823, in the top quarter only 2692; at 10,000 md-ft 3633 against 3632"
 title = "Depth in the well model: a dipping layered model at rest stays at rest; where the lateral lands matters when the well meets its fracture in one layer only"
@@ -2177,7 +2177,7 @@ status = "pass"
 id = "fracwell_layers_maps"
 ministeps = 76
 reference = "the same layered model written without maps"
-seconds = 2.58
+seconds = 2.61
 kind = "exact"
 detail = "12-month oil: two layers 4028 stb; with twice the permeability by map 4867, by layers 4867; with half the net pay by map 2015, as half-thick layers 2014; under a drawn geology 2615"
 title = "Rock maps on a layered model: maps that say nothing new change nothing, a doubled-permeability map equals doubled layers, half net pay equals half-thick layers"
@@ -2209,7 +2209,7 @@ status = "pass"
 id = "chain_layers"
 ministeps = 76
 reference = "the growth model's own height carried into the well model; the same well with the fracture held inside the pay"
-seconds = 4.19
+seconds = 4.18
 kind = "self"
 detail = "barrier above at 1,500 psi: the fracture reaches 1 ft above the pay, half-length 519 ft; at 250 psi: 55 ft above, half-length 508 ft. 12-month oil with the upper layer connected through the fracture 4242 stb, with the same fracture held to the pay 3199 stb"
 title = "Fracture height to layers: a fracture that breaks through a weak barrier drains the layer above the pay"
@@ -2246,9 +2246,9 @@ status = "pass"
 id = "chain_layers_proppant"
 ministeps = 76
 reference = "the pay-only pack figure of the same job; the same job with the grains spread evenly"
-seconds = 4.85
+seconds = 4.52
 kind = "self"
-detail = "conductivity share by layer, top to bottom (lateral in layer 4 of 7): settled bank 0.00 0.14 0.65 1.00 0.94 0.26 0.00; even spread 0.00 0.07 1.00 1.00 1.00 0.07 0.00. 12-month oil 4507 stb with the bank, 2947 with the even spread. Notes: stage 1: 7% of the proppant could not be placed: the fracture packed off back to the well 56 min into the job (screen-out). A real job would have stopped there; the flow model does not feel it"
+detail = "conductivity share by layer, top to bottom (lateral in layer 4 of 7): settled bank 0.00 0.14 0.65 1.00 0.94 0.25 0.00; even spread 0.00 0.07 1.00 1.00 1.00 0.07 0.00. 12-month oil 4677 stb with the bank, 2947 with the even spread. Notes: stage 1: 7% of the proppant could not be placed: the fracture packed off back to the well 56 min into the job (screen-out). A real job would have stopped there; the flow model does not feel it"
 title = "Proppant pack to layers: conductivity by depth zone adds up to the pay figure, a settled bank sits lower than an even spread, and the well model takes the layer shares"
 cuts = 0
 
@@ -2283,7 +2283,7 @@ status = "pass"
 id = "chain_parent_child"
 ministeps = 77
 reference = "the child's grown geometry carried into the well model; the child's own fractures alone in untouched rock; the parent on its own"
-seconds = 9.48
+seconds = 8.7
 kind = "self"
 detail = "child stage 660 ft from a parent that produced 24 months, 100 ft from the parent's fractures along the well: 961 ft towards the parent, 236 ft away, 718 ft tip to tip in the well model (60% of each wing). First 12 months: 3526 stb against 5907 for the same fracture alone in untouched rock; over those months the parent gives 1162 stb against 1291 left alone. The same stage in line with a parent fracture is a frac hit after 2.8 min and is counted as 358 ft tip to tip"
 title = "A child well designed into the rock its parent left, then both produced in one model"
@@ -2340,7 +2340,7 @@ status = "pass"
 id = "fracwell_offcentre_well"
 ministeps = 76
 reference = "the same fracture with the well at its middle"
-seconds = 2.01
+seconds = 1.81
 kind = "self"
 detail = "800 ft fracture at 2 md-ft in 0.002 md rock, 12-month oil: well at the middle 3170 stb, 250 ft off the middle 2767 (wings of 150 and 650 ft); at 100,000 md-ft 6272 against 6271. One wing fading to 1% at its tip 2999, both wings 2827"
 title = "A well that crosses its fracture off the middle: no change when conductivity is unlimited, the long wing costs oil when it is not, the two sides mirror"
@@ -2377,7 +2377,7 @@ status = "pass"
 id = "chain_child_proppant"
 ministeps = 76
 reference = "the pack model applied to each wing by hand; the same child with a declared conductivity"
-seconds = 12.44
+seconds = 11.55
 kind = "self"
 detail = "created 961 ft towards the parent and 236 ft away; propped 968 ft towards and 225 ft away, 4 md-ft at the well; child's first 12 months 2876 stb"
 title = "A child well with a proppant design: each wing propped by the sand it took"
@@ -2434,7 +2434,7 @@ status = "pass"
 id = "fracwell_flowback"
 ministeps = 77
 reference = "the water asked for; the engine's water mass in rock and wellbore against water produced; the same well with no frac water"
-seconds = 5.12
+seconds = 8.48
 kind = "self"
 detail = "300 bbl of frac water beside a 500 ft fracture in 0.002 md rock: the rock gives back 203 bbl in 12 months with no capillary pressure (68%) and 121 bbl with 300 psi of entry pressure (40%); another 51 bbl at the wellhead had stood in the engine's wellbore. With no frac water the rock gives 1.0 bbl and the wellbore 13.6. First-month oil 882 stb against 1096 without the water; 12-month oil 3758 against 4037"
 title = "Frac water beside the fracture: all of it is placed, most of it comes back unless capillary pressure holds it, and it holds oil back at first"
@@ -2481,6 +2481,11 @@ cuts = 0
     value = 0.0
     pass = true
     [[test.checks]]
+    name = "live_oil_with_a_pressure_schedule_runs"
+    bar = 0.5
+    value = 0.0
+    pass = true
+    [[test.checks]]
     name = "cut_fraction"
     bar = 0.05
     value = 0.0
@@ -2491,7 +2496,7 @@ status = "pass"
 id = "chain_flowback"
 ministeps = 77
 reference = "the job's own volume; the same design without flowback"
-seconds = 5.94
+seconds = 5.64
 kind = "self"
 detail = "two fractures pumped with 320 and 640 bbl: 192 and 384 bbl lie beside the conductive 60% of each and are in the model; the rock gives back 308 bbl in 12 months (53% of what is in the model, 32% of what was pumped). First-month oil 1000 stb against 1414 with no frac water"
 title = "The fluid a job pumped comes back as water: volume from the job, the share beside the conductive fracture in the model, the rest out of it"
@@ -2538,7 +2543,7 @@ status = "pass"
 id = "fracwell_drygas"
 ministeps = 283
 reference = "material balance from the gas table, with the pore volume and the connate water changing with pressure"
-seconds = 15.09
+seconds = 14.23
 kind = "exact"
 detail = "a 400 x 400 x 50 ft closed model at 5,000 psia drained to 1,000: 114950 Mscf produced, 114896 by material balance from the gas table (+0.05%); first month 114950 Mscf, last month 2.4e-07"
 title = "Dry-gas fractured well: a closed model drained to its flowing pressure gives up exactly the gas the table says, and oil-only options are refused"
@@ -2587,7 +2592,7 @@ detail = "three clusters, 45 bpm, slickwater and 100 mesh in rock with 0.0019 ft
 reference = "the settled and the even-spread rules as limits; grain conservation; the closure-time relation of the DFIT analysis"
 id = "closure_settling"
 title = "Sand settles only until the fracture closes: the limits give the old rules, grains are conserved, and in leaky rock the pack stays in the pay"
-seconds = 10.13
+seconds = 10.01
 
     [[test.checks]]
     name = "endless_fall_is_the_settled_rule"
@@ -2615,6 +2620,11 @@ seconds = 10.13
     value = -5.551115123125783e-17
     pass = true
     [[test.checks]]
+    name = "conducts_in_proportion_to_its_sand"
+    bar = 1.0e-9
+    value = 4.440892098500626e-16
+    pass = true
+    [[test.checks]]
     name = "leaky_rock_closes_within_minutes_unless_ballooned"
     bar = 0.5
     value = 0.0
@@ -2635,12 +2645,66 @@ seconds = 10.13
     value = 0.0
     pass = true
 [[test]]
+kind = "self"
+status = "pass"
+detail = "child stage in line with a 24-month parent: 660 ft away it makes 0.90 of its own fracture in fresh rock and the parent 0.969 of its oil left alone (frac hit); 2,300 ft away 1.00 and 1.001. This job needs 4.5 min to grow 300 ft here (gives 301 ft). Screening mode: 1 s per call"
+reference = "its own parts added up by hand; a child far from the parent; the growth model at the minutes found"
+id = "chain_child_factors"
+title = "Child and parent factors in one call, and the job that grows a chosen length"
+seconds = 8.37
+
+    [[test.checks]]
+    name = "factors_are_their_parts"
+    bar = 1.0e-12
+    value = 0.0
+    pass = true
+    [[test.checks]]
+    name = "near_child_loses"
+    bar = 0.5
+    value = 0.0
+    pass = true
+    [[test.checks]]
+    name = "near_parent_loses"
+    bar = 0.5
+    value = 0.0
+    pass = true
+    [[test.checks]]
+    name = "in_line_is_a_hit"
+    bar = 0.5
+    value = 0.0
+    pass = true
+    [[test.checks]]
+    name = "far_child_is_like_a_new_well"
+    bar = 0.03
+    value = 3.52515638901707e-9
+    pass = true
+    [[test.checks]]
+    name = "far_parent_untouched"
+    bar = 0.01
+    value = 0.000732453149984158
+    pass = true
+    [[test.checks]]
+    name = "far_is_no_hit"
+    bar = 0.5
+    value = 0.0
+    pass = true
+    [[test.checks]]
+    name = "minutes_give_the_length"
+    bar = 0.03
+    value = 0.002799584299251645
+    pass = true
+    [[test.checks]]
+    name = "minutes_plausible"
+    bar = 0.5
+    value = 0.0
+    pass = true
+[[test]]
 cells = 1235
 status = "pass"
 id = "chain_screenout"
 ministeps = 76
 reference = "the same job with the flow blind to the proppant"
-seconds = 6.86
+seconds = 6.71
 kind = "self"
 detail = "10 bpm for 60 min with sand from 20% of the job: blind to the sand the fracture is 523 ft long at 253 psi net; feeling it, 360 ft at 1182 psi. With a limit of 717 psi: stage 1: the job was stopped after 29.5 of 60 min (the wellbore pressure passed the limit); 37% of the planned proppant had been pumped"
 title = "A job that screens out, through the design chain: pressure rises, the fracture is shorter, a pressure limit stops the job, and the notes say so"
@@ -2689,7 +2753,7 @@ detail = "three clusters and one cluster, both wings solved against one wing mir
 reference = "the same stage solved as one wing and its mirror image (the solver used everywhere else); a closed-form scaling rule of the cross-section"
 id = "child_two_wings_symmetric"
 title = "Both wings of every cluster solved: in untouched rock they must give the one-wing answer"
-seconds = 2.32
+seconds = 2.33
 
     [[test.checks]]
     name = "same_as_one_wing"
@@ -2729,7 +2793,7 @@ detail = "600 bbl in 30 min; pore pressure down 0 / 500 / 1,500 psi on one side 
 reference = "direction and symmetry: the stress change alone, the leak-off change alone, both, and the mirror image"
 id = "child_lopsided_growth"
 title = "A fracture with depleted rock on one side: grows towards it, leaks more, and reaches a parent fracture sooner"
-seconds = 4.89
+seconds = 4.88
 
     [[test.checks]]
     name = "more_depletion_more_lopsided"
@@ -2794,7 +2858,7 @@ detail = "parent: three 300 ft fractures, 0.002 md, 24 months at 1,000 psi. Chil
 reference = "direction and symmetry: which side the parent is on, how long it has produced, how much is pumped; geometry handed to the well model"
 id = "child_feels_parent"
 title = "A child stage 660 ft from a parent that has produced for two years"
-seconds = 7.29
+seconds = 7.22
 
     [[test.checks]]
     name = "grows_towards_parent"
@@ -2843,7 +2907,7 @@ detail = "b = 1.3 from 0.6 per month: reaches the terminal 0.006 per month after
 reference = "closed forms for exponential, harmonic and b = 1/2; Simpson integration of the rate; limits b -> 0 and b -> 1"
 id = "arps_formulas"
 title = "Decline curves: rate, cumulative, terminal decline and EUR"
-seconds = 0.02
+seconds = 0.03
 
     [[test.checks]]
     name = "closed_forms"
@@ -2912,7 +2976,7 @@ detail = "36 months each; worst error in qi or D 3.5e-14, in b 5.2e-14; with 2% 
 reference = "monthly volumes generated from exponential, hyperbolic, harmonic and transient (b = 1.3) curves without noise"
 id = "arps_fit_recovers"
 title = "Decline fitting: parameters read back from curves built with known ones"
-seconds = 1.39
+seconds = 1.38
 
     [[test.checks]]
     name = "qi_and_decline"
@@ -2999,7 +3063,7 @@ status = "pass"
 id = "arps_on_simulator_forecast"
 ministeps = 145
 reference = "the simulator's own 120-month forecast (screening mode): directions known from flow theory, and how closely one curve follows it"
-seconds = 0.42
+seconds = 0.44
 kind = "self"
 detail = "three stages 200 ft apart in 0.0005 md rock, 120 months, 14250 stb. Fit of months 1-12: b = 2.00, and its forecast of months 61-120 is +83% off. Fit of months 61-120: b = 0.97, log error 0.007. One curve through all 120 months: b = 0.96, log error 0.086, largest 0.676, cumulative -1.9%"
 title = "One decline curve against a simulated fractured well: what a single Arps curve can and cannot describe"
@@ -3033,11 +3097,11 @@ cuts = 0
 [[test]]
 kind = "self"
 status = "pass"
-detail = "24-month oil over 8 draws. Modest rock variation: P90 1440, P50 1598, P10 1771 stb (spread 21%). Strong variation: P90 937, P50 1341, P10 2024 stb (spread 81%). 33 screening runs in 3.1 s"
+detail = "24-month oil over 8 draws. Modest rock variation: P90 1440, P50 1598, P10 1771 stb (spread 21%). Strong variation: P90 937, P50 1341, P10 2024 stb (spread 81%). 33 screening runs in 3.2 s"
 reference = "its own conditions: same seeds same answer; no variance no spread; more variance more spread; the summary is ordered"
 id = "ensemble_geology_spread"
 title = "Uncertainty runs: the same well in many draws of the rock, and the spread of its oil"
-seconds = 3.43
+seconds = 3.48
 
     [[test.checks]]
     name = "same_seeds_same_answer"
@@ -3141,7 +3205,7 @@ detail = "half-length 541.6 m and wellbore pressure 1.967 MPa with and without t
 reference = "the same runs without the keyword: equal to the last digit with no proppant, and to 1e-6 with a trace of it"
 id = "screenout_off_is_exact"
 title = "Proppant feedback switched on with no proppant, or with next to none, changes nothing"
-seconds = 3.4
+seconds = 3.45
 
     [[test.checks]]
     name = "no_proppant_one_fracture"
@@ -3176,7 +3240,7 @@ detail = "a cell packs at 285 m after 1172 s. From then to 3000 s, when the job 
 reference = "the same job without feedback, at the same time; conservation; the same job on a finer grid and with shorter steps"
 id = "screenout_tip"
 title = "Tip screen-out: sand reaches the tip, packs, the tip stops and the pressure behind the pack rises"
-seconds = 12.27
+seconds = 12.46
 
     [[test.checks]]
     name = "a_cell_packs"
@@ -3341,7 +3405,7 @@ detail = "half-lengths without feedback 555 / 554 / 555 m, with it 420 / 392 / 4
 reference = "the same stage without feedback; mirror symmetry of the outer clusters; conservation"
 id = "screenout_clusters"
 title = "Three clusters with feedback: the stage still splits evenly through its perforations, and each fracture screens out"
-seconds = 2.05
+seconds = 1.99
 
     [[test.checks]]
     name = "mirror"
@@ -3376,7 +3440,7 @@ detail = "10 bpm for 60 min, 3 lb/gal from 12 min, 1,500 psi barriers. Without f
 reference = "the same job without feedback; conservation; a pressure limit"
 id = "screenout_blown_up"
 title = "A fracture blown up behind a proppant plug still solves, reports the plug, and says when its height means nothing"
-seconds = 7.26
+seconds = 7.12
 
     [[test.checks]]
     name = "volume_balance"
@@ -3425,7 +3489,7 @@ detail = "linear flow only: the history fixes perm_md^0.50 x half_length_ft to w
 reference = "a rate that depends on the inputs only through half-length x sqrt(permeability); the same with a decline that separates them"
 id = "match_formulas"
 title = "History matching on closed-form models: what the data fix, what they leave open, and the answer read back"
-seconds = 2.48
+seconds = 2.24
 
     [[test.checks]]
     name = "product_read_back"
@@ -3504,7 +3568,7 @@ detail = "history of 30 months made with 0.004 md and 220 ft: read back 0.00400 
 reference = "the inputs the history was made with"
 id = "match_recovers_truth"
 title = "History match of a simulated well, same model for history and fit: the inputs come back, and a changing flowing pressure must be given"
-seconds = 35.87
+seconds = 34.61
 
     [[test.checks]]
     name = "inputs_read_back"
@@ -3543,7 +3607,7 @@ detail = "twelve months of linear flow, data good to 2%: the history fixes perm_
 reference = "half-length x sqrt(permeability), the one number linear flow carries; the inputs the histories were made with"
 id = "match_identifiability"
 title = "What a history can and cannot fix: twelve months of linear flow against thirty months that reach the boundary"
-seconds = 10.88
+seconds = 10.58
 
     [[test.checks]]
     name = "product_read_back"
@@ -3592,7 +3656,7 @@ detail = "60-month oil of the true model 4736 stb. From 4 months of history (3% 
 reference = "the forecast of the model the history was made with"
 id = "match_forecast_spread"
 title = "Forecast from a matched model: the spread of equally good fits holds the truth, and a longer history narrows it"
-seconds = 28.65
+seconds = 27.19
 
     [[test.checks]]
     name = "truth_inside_the_short_history_spread"
@@ -3626,7 +3690,7 @@ detail = "the true inputs run in the fitting model miss the finer history by 0.0
 reference = "the inputs and the forecast of the finer model"
 id = "match_mesh_bias"
 title = "History from a finer model than the one fitted with: the fit follows it, and the inputs carry the difference"
-seconds = 14.65
+seconds = 13.73
 
     [[test.checks]]
     name = "fit_follows_the_finer_history"
@@ -3693,7 +3757,7 @@ status = "pass"
 id = "lift_table_well"
 ministeps = 189
 reference = "the tubing model itself (gas-liquid, no slip), solved inside the time step"
-seconds = 14.22
+seconds = 15.5
 kind = "cross"
 detail = "12-month oil: 7084 stb through the tubing model, 7084 through an 80 x 3 x 60 table of it (+0.00%), 7084 through a 14 x 3 x 10 table (+0.00%). Tubing pressure drop after the first day: 14 to 253 psi; the fine table is within 0.39% of the model, the rough one within 10.0%. Calls outside the fine table: 0"
 title = "A well produced through a lift table against the same well through the tubing model the table was made from"
@@ -3735,7 +3799,7 @@ status = "pass"
 id = "field_gas_limit"
 ministeps = 508
 reference = "one well under half the limit (symmetry); the limits themselves"
-seconds = 20.86
+seconds = 20.59
 kind = "exact"
 detail = "12-month oil: two wells with no limit 8947 stb, under 60 Mscf/d of gas 8799 (gas limit holding in 43 of 74 steps; first month 1444 stb against 2158), with a 25 stb/d oil limit as well 8104 (oil limit holding in 60 steps, gas in 0)"
 title = "A facility gas limit: twins under a shared limit equal one well under half of it, the limit holds, and with an oil limit as well the tighter one rules"
@@ -3799,7 +3863,7 @@ detail = "0.4 pore volumes of traced water into 200 cells: tracer mass in the re
 reference = "material balance; front position = water injected / water in place"
 id = "engine_tracer"
 title = "Tracer in injected water: all of it is accounted for, it arrives where the water does, and a tracer that is not injected stays out"
-seconds = 15.63
+seconds = 14.97
 
     [[test.checks]]
     name = "mass_balance"
@@ -3839,7 +3903,7 @@ detail = "a 400 K face on 300 K rock for 3.2 days (diffusivity 8.81e-07 m2/s): l
 reference = "error-function solution; diffusivity = conductivity / heat capacity per volume of rock and fluid"
 id = "engine_heat_conduction"
 title = "Heat conduction in rock at rest against the exact solution for a half-space with a hot face"
-seconds = 5.06
+seconds = 5.09
 
     [[test.checks]]
     name = "temperature_profile"
@@ -3873,7 +3937,7 @@ detail = "turning at 60% saturation: at 50% the drainage curve gives 0.2244, Car
 reference = "the two rules as published, evaluated on curves with known formulas"
 id = "engine_hysteresis_curves"
 title = "Relative-permeability hysteresis: the engine's scanning curves against Carlson's and Killough's rules written out from the end points"
-seconds = 0.22
+seconds = 0.21
 
     [[test.checks]]
     name = "carlson"
@@ -3918,7 +3982,7 @@ detail = "gas reached 83% saturation at most; after 12 pore volumes of water 24.
 reference = "Land's trapped saturation from the largest gas saturation each cell saw; the same flood without hysteresis"
 id = "engine_hysteresis_trapping"
 title = "Hysteresis in a run: gas pushed in, then flushed with water, stays trapped where it has been, by the amount the rule gives"
-seconds = 5.66
+seconds = 5.56
 
     [[test.checks]]
     name = "gas_got_in"
@@ -3948,7 +4012,7 @@ detail = "first 8 report steps of SPE9: CPR 148 linear iterations for 49 Newton 
 reference = "the same case solved with the other preconditioner"
 id = "engine_cpr_solver"
 title = "Pressure-preconditioned (CPR) linear solver against plain incomplete LU on SPE9: same answer, less work"
-seconds = 12.86
+seconds = 12.31
 
     [[test.checks]]
     name = "same_rates"
@@ -3973,7 +4037,7 @@ detail = "one pore volume of water through 50 cells: oil produced 3749 m3 with t
 reference = "the two-point scaling rule as published, applied to the table by hand; the same deck without scaling"
 id = "engine_endpoint_scaling"
 title = "End-point scaling from a deck: a run with the scaling keywords equals a run with the scaled table written out by hand"
-seconds = 6.92
+seconds = 6.94
 
     [[test.checks]]
     name = "keywords_equal_table_by_hand"
@@ -3998,7 +4062,7 @@ detail = "mass rate after 5 days: one-node well 254.70 kg/s, segmented with 0.3 
 reference = "the engine's one-node well; the Darcy-Weisbach pressure drop with the Colebrook-White friction factor"
 id = "engine_multisegment_well"
 title = "Multi-segment well: a wide one equals the simple well, a narrow one is choked, and its friction is what pipe-flow theory gives"
-seconds = 16.75
+seconds = 16.96
 
     [[test.checks]]
     name = "wide_equals_simple"
@@ -4023,7 +4087,7 @@ detail = "first 20 report steps of SPE1: well pressures and gas rate differ from
 reference = "the two-point scheme on SPE1, whose grid is aligned with its permeability"
 id = "engine_consistent_schemes"
 title = "Consistent flux schemes (averaged multipoint, nonlinear two-point) on a grid where the plain two-point scheme is already exact: all three must agree"
-seconds = 14.36
+seconds = 15.54
 
     [[test.checks]]
     name = "averaged_multipoint"
@@ -4043,7 +4107,7 @@ detail = "depletion from 200 to 150 bar: 63.72 m3 of oil from 50 cells, 63.72 fr
 reference = "material balance: at full depletion the oil produced depends on pore volume and compressibility only"
 id = "engine_coarsening"
 title = "Model coarsening: pore volume is kept exactly, and a depleted reservoir gives up the same oil on 5 cells as on 50"
-seconds = 5.08
+seconds = 5.05
 
     [[test.checks]]
     name = "pore_volume"
@@ -4083,7 +4147,7 @@ detail = "first 30 report steps: producer pressure and gas rate within 1.3e-02 o
 reference = "the same case solved with the default Newton solver"
 id = "engine_nldd"
 title = "Nonlinear domain decomposition against Newton's method on SPE1: same answer"
-seconds = 19.7
+seconds = 19.91
 
     [[test.checks]]
     name = "same_answer"
@@ -4103,7 +4167,7 @@ detail = "two-phase displacement in 12 cells, 12 steps: adjoint and difference g
 reference = "central differences: each input moved up and down by a part in a thousand and the model run again"
 id = "engine_adjoint_gradients"
 title = "Adjoint gradients: how a result changes with pore volumes and transmissibilities, against re-running the model"
-seconds = 4.96
+seconds = 5.0
 
     [[test.checks]]
     name = "pore_volume"
@@ -4156,7 +4220,7 @@ detail = "a one-row summary is 440 + 112 bytes; both files match the hand-assemb
 reference = "the two files of a one-row, two-vector summary assembled byte by byte in the test from the published layout; block sizes; every array type read back"
 id = "eclout_record_layout"
 title = "Binary summary files: the bytes written are the bytes the published layout asks for"
-seconds = 0.16
+seconds = 0.18
 
     [[test.checks]]
     name = "smspec_bytes"
@@ -4230,7 +4294,7 @@ detail = "29 vectors at 120 times for wells INJ, PROD; files 1196 and 26400 byte
 reference = "the engine's summary_result for the same run (independent code); the files read back; totals recomputed from the rates read"
 id = "eclout_summary_spe1"
 title = "Binary summary of the SPE1 run: read back unchanged, totals consistent, and the values agree with the engine's own summary assembly"
-seconds = 1.86
+seconds = 1.83
 
     [[test.checks]]
     name = "read_back"
@@ -4295,7 +4359,7 @@ detail = "100 times over 6 months; stage oil 1294 and 910 STB in the files again
 reference = "run_fracwell's own per-stage cumulative oil and gas (a separate accounting, by calendar month)"
 id = "eclout_staged_well"
 title = "Binary summary of a fractured well whose second stage starts later: one time axis across the split, and totals equal to the run's own per-stage oil"
-seconds = 3.17
+seconds = 3.18
 
     [[test.checks]]
     name = "time_runs_on_across_the_split"
@@ -4339,7 +4403,7 @@ detail = "one month: revenue to the owner 45696.00, severance 2183.68, ad valore
 reference = "arithmetic on paper: 1,000 bbl, 2,000 Mscf, 500 bbl of water; 80% working interest, 20% royalty"
 id = "econ_cash_by_hand"
 title = "Cash flow of one month by hand: interests, severance and ad valorem taxes, costs, price deck"
-seconds = 0.44
+seconds = 0.42
 
     [[test.checks]]
     name = "revenue"
@@ -4393,7 +4457,7 @@ detail = "exponential decline at 10% a year: mid-month 5090548.18, closed form 5
 reference = "geometric sums; the closed form for an exponential decline; continuous discounting of the same decline"
 id = "econ_discounting"
 title = "Discounting: annuity sums for each timing and rate basis, capital at its own time, an exponential decline in closed form"
-seconds = 0.4
+seconds = 0.43
 
     [[test.checks]]
     name = "mid_month"
@@ -4678,7 +4742,7 @@ status = "pass"
 id = "econ_on_simulated_well"
 ministeps = 41
 reference = "the runs' own monthly volumes; capital arithmetic; a fixed cost set to the revenue of month 6"
-seconds = 0.77
+seconds = 0.71
 kind = "self"
 detail = "12 months of a three-stage well: 6763 bbl and 20999 Mscf; at 70 USD/bbl and 2.5 USD/Mscf with a 20% royalty and 200,000 of capital, NPV 207404, payout 2.8 months; with a fixed cost equal to month 6's revenue the limit is month 5"
 title = "Economics read straight off a simulated well and off a field run"
@@ -4742,7 +4806,7 @@ detail = "five jobs, each run by today's call and as a schedule of one or two st
 reference = "today's single-rate call (stage_grow), which itself is unchanged"
 id = "stepped_equals_one_call"
 title = "A schedule in steps against today's single call: with the same grid, table and time steps the numbers are the same to the last digit"
-seconds = 9.13
+seconds = 9.1
 
     [[test.checks]]
     name = "one_fracture_clean_fluid"
@@ -4782,7 +4846,7 @@ detail = "a five-step schedule (rate up, thicker fluid with sand, a pause, more 
 reference = "the same schedule in one call"
 id = "stepped_continued_equals_uninterrupted"
 title = "A job stopped and continued, in memory or through a file, against the same schedule pumped in one go: the same to the last digit"
-seconds = 9.69
+seconds = 9.66
 
     [[test.checks]]
     name = "one_fracture_in_memory"
@@ -4842,7 +4906,7 @@ detail = "constant rate against two thirds then four thirds of it: at half time 
 reference = "the same job at constant rate, without the pause, and with the full sand schedule"
 id = "stepped_directions"
 title = "A schedule changes the job the way physics says: a rate rise, a pause, a sand cut and a longer pad"
-seconds = 12.38
+seconds = 12.41
 
     [[test.checks]]
     name = "slow_start_is_behind_at_half_time"
@@ -4912,7 +4976,7 @@ detail = "a job planned for 5 minutes and pumped for 50 ends after 742 s: a frac
 reference = "its own state and read-out"
 id = "stepped_limits"
 title = "What a job says when it outgrows what was fixed at its start, when it passes its pressure limit, and when it is asked for what it cannot do"
-seconds = 6.0
+seconds = 6.07
 
     [[test.checks]]
     name = "outgrown_grid_ends_the_job"
@@ -4957,7 +5021,7 @@ detail = "two clusters, 24 bpm for 30 min: today's call and one schedule step gi
 reference = "grow_stage_clusters on the same grid; the schedule's own arithmetic"
 id = "stepped_field_units"
 title = "The field-unit front end: one step equals today's call, and the read-out adds up"
-seconds = 3.07
+seconds = 3.09
 
     [[test.checks]]
     name = "one_step_equals_todays_call"
@@ -5000,7 +5064,7 @@ status = "pass"
 id = "surface_linear_tubing"
 ministeps = 187
 reference = "the same well run without the loop, with the tubing resistance folded into the connection"
-seconds = 10.92
+seconds = 11.03
 kind = "exact"
 detail = "20 loop iterations; bottom-hole pressure falls from 4024 to 1012 psi as rate declines from 151 to 0.6 stb/d; 12-month oil 706 stb; solver steps 187 against 187 without the loop"
 title = "Wellbore coupling: rate-proportional tubing drop (20 psi per stb/d) on one stage"
@@ -5032,7 +5096,7 @@ status = "pass"
 id = "surface_implicit_tubing"
 ministeps = 187
 reference = "the same well with the tubing resistance folded into the connection"
-seconds = 3.2
+seconds = 3.23
 kind = "exact"
 detail = "one run of 2.5 s; peak rate 151 stb/d at 4024 psi bottom-hole; 12-month oil 707 stb"
 title = "Wellbore coupling inside the timestep: rate-proportional tubing drop, one run"
@@ -5059,7 +5123,7 @@ status = "pass"
 id = "surface_implicit_cap"
 ministeps = 187
 reference = "the engine's own rate target with a pressure limit"
-seconds = 1.25
+seconds = 1.24
 kind = "exact"
 detail = "one run of 0.6 s; peak oil rate 20.000 stb/d; 12-month oil 711 stb"
 title = "Facility limit inside the timestep: oil capped at 20 stb/d, one run"
@@ -5086,7 +5150,7 @@ status = "pass"
 id = "surface_rate_cap"
 ministeps = 187
 reference = "the engine's own rate target with a pressure limit (the control path SPE9 exercises)"
-seconds = 13.7
+seconds = 13.83
 kind = "exact"
 detail = "31 loop iterations; well held at the limit for 2 days, peak oil rate 20.00 stb/d, 12-month oil 711 stb"
 title = "Facility limit: oil rate capped at 20 stb/d on one stage, then decline at separator pressure"
@@ -5120,7 +5184,7 @@ reference = "the same model with every stage as its own well at that pressure (n
 id = "surface_multistage_live_oil"
 ministeps = 189
 title = "One well with three stages, live oil, at a fixed separator pressure: must equal the three stage-wells"
-seconds = 4.02
+seconds = 4.27
 cuts = 0
 
     [[test.checks]]
@@ -5149,7 +5213,7 @@ status = "pass"
 id = "chain_growth_reservoir_surface"
 ministeps = 187
 reference = "its own conditions: surface condition closed at every step, limit honoured, few cut steps"
-seconds = 8.13
+seconds = 8.03
 kind = "self"
 detail = "grown half-lengths 130 / 256 / 379 ft; facility full for 40 days; bottom-hole pressure 3472 to 4992 psi; 12-month oil 2263 stb"
 title = "Fracture growth, live-oil reservoir, 9,050 ft of tubing and a 15 stb/d facility limit in one run"
@@ -5176,7 +5240,7 @@ status = "pass"
 id = "lift_noslip_well"
 ministeps = 188
 reference = "its own conditions: surface condition closed at every step, few cut steps, lower bottom-hole pressure and more oil with gas in the column"
-seconds = 4.46
+seconds = 5.69
 kind = "self"
 detail = "12-month oil 3651 stb with liquid-filled tubing (final bottom-hole pressure 3472 psi), 7084 stb without slip (114 psi): the true answer lies between"
 title = "Three-stage live-oil well behind 9,050 ft of tubing: liquid-only against gas-liquid without slip"
@@ -5210,7 +5274,7 @@ ministeps = 382
 reference = "the in-timestep surface condition on the same well and tubing"
 seconds = 7.22
 kind = "cross"
-detail = "382 step solves for 187 steps in 4.3 s"
+detail = "382 step solves for 187 steps in 4.2 s"
 title = "Step-by-step operating-point solver against the in-timestep solver (no-slip tubing)"
 cuts = 0
 
@@ -5235,9 +5299,9 @@ status = "pass"
 id = "lift_slip_well"
 ministeps = 434
 reference = "its own conditions: operating point closed at every step, few cut steps, oil between the liquid-only and no-slip runs"
-seconds = 14.72
+seconds = 15.56
 kind = "self"
-detail = "12-month oil: 3651 stb liquid-filled tubing, 4637 stb with slip, 7084 stb without slip; bottom-hole pressure with slip from 971 to 3276 psi; 434 step solves in 9.8 s"
+detail = "12-month oil: 3651 stb liquid-filled tubing, 4637 stb with slip, 7084 stb without slip; bottom-hole pressure with slip from 971 to 3276 psi; 434 step solves in 9.6 s"
 title = "Three-stage live-oil well behind 9,050 ft of tubing with gas-liquid slip"
 cuts = 2
 
@@ -5262,7 +5326,7 @@ status = "pass"
 id = "pad_far_apart"
 ministeps = 500
 reference = "one lateral alone in the same model (the other absent)"
-seconds = 17.54
+seconds = 16.75
 kind = "exact"
 detail = "36-month oil per stage 6415 stb with the second lateral 2,000 ft away, 6415 stb alone"
 title = "Two laterals 2,000 ft apart in the same rock: each must equal a lateral on its own"
@@ -5284,7 +5348,7 @@ status = "pass"
 id = "pad_interference"
 ministeps = 500
 reference = "its own conditions: mirror-image laterals equal, and each makes less the closer they are"
-seconds = 23.22
+seconds = 22.01
 kind = "self"
 detail = "36-month oil per lateral (two stages, 5 microdarcy rock): 12830 stb at 2,000 ft, 12098 stb at 800 ft (-5.7%), 10428 stb at 550 ft (-18.7%)"
 title = "Two laterals in the same rock at 2,000, 800 and 550 ft spacing (500 ft tip-to-tip fracture span each)"
@@ -5311,9 +5375,9 @@ status = "pass"
 id = "field_twins_shared_line"
 ministeps = 886
 reference = "one such well alone with twice the line resistance as its tubing (in-timestep form)"
-seconds = 4.11
+seconds = 4.01
 kind = "exact"
-detail = "886 step solves for 187 steps x 2 wells in 3.1 s; node pressure from 4024 down to 1012 psi; 12-month oil per well 706 stb"
+detail = "886 step solves for 187 steps x 2 wells in 3.0 s; node pressure from 4024 down to 1012 psi; 12-month oil per well 706 stb"
 title = "Two identical wells on a shared flowline (10 psi per stb/d of total liquid)"
 cuts = 0
 
@@ -5343,9 +5407,9 @@ status = "pass"
 id = "field_twins_facility_cap"
 ministeps = 534
 reference = "one such well alone under a 20 stb/d limit (in-timestep form, itself checked against the engine's rate target)"
-seconds = 1.72
+seconds = 1.63
 kind = "exact"
-detail = "534 step solves in 1.3 s; facility full for 2.1 days; peak total oil 40.004 stb/d"
+detail = "534 step solves in 1.2 s; facility full for 2.1 days; peak total oil 40.004 stb/d"
 title = "Two identical wells under a 40 stb/d facility oil limit"
 cuts = 0
 
@@ -5375,9 +5439,9 @@ status = "pass"
 id = "field_unequal_wells"
 ministeps = 782
 reference = "its own conditions: limit honoured, node equation closed, both wells at the common node pressure"
-seconds = 1.96
+seconds = 1.7
 kind = "self"
-detail = "facility full for 3.2 days; 12-month oil: strong well 929 stb, weak well 487 stb (66% / 34%); 782 step solves in 2.0 s"
+detail = "facility full for 3.2 days; 12-month oil: strong well 929 stb, weak well 487 stb (66% / 34%); 782 step solves in 1.7 s"
 title = "A strong and a weak well on one line under a 30 stb/d facility limit"
 cuts = 0
 
@@ -5402,9 +5466,9 @@ status = "pass"
 id = "field_pro_rata_twins"
 ministeps = 430
 reference = "one such well alone under a 20 stb/d limit (in-timestep form)"
-seconds = 2.18
+seconds = 1.9
 kind = "exact"
-detail = "facility full for 2.1 days; 430 step solves in 1.5 s"
+detail = "facility full for 2.1 days; 430 step solves in 1.2 s"
 title = "Pro-rata allocation, two identical wells under 40 stb/d: each must match one well under 20 stb/d"
 cuts = 0
 
@@ -5434,7 +5498,7 @@ status = "pass"
 id = "field_priority_twins"
 ministeps = 430
 reference = "one such well alone under a 40 stb/d limit (no shared line, so the first well cannot feel the second)"
-seconds = 1.86
+seconds = 1.95
 kind = "exact"
 detail = "facility full for 2.1 days; 12-month oil: first well 711 stb, second well 710 stb"
 title = "Priority allocation, two identical wells under 40 stb/d: the first well must match one well alone under 40 stb/d"
@@ -5466,9 +5530,9 @@ status = "pass"
 id = "field_common_choke_flush"
 ministeps = 810
 reference = "its own conditions: the run completes, the limit is honoured, and the total matches the pro-rata run of the same field"
-seconds = 11.75
+seconds = 10.94
 kind = "self"
-detail = "810 step solves in 7.1 s; node pressure up to 1614 psi; 24-month oil by well 8077 / 4696 / 5583 stb (pro-rata: 8079 / 4697 / 5585)"
+detail = "810 step solves in 6.5 s; node pressure up to 1614 psi; 24-month oil by well 8077 / 4696 / 5583 stb (pro-rata: 8079 / 4697 / 5585)"
 title = "Common choke with the limit far below flush rate: three unequal live-oil wells, 66.7 stb/d"
 cuts = 7
 
@@ -5493,7 +5557,7 @@ status = "pass"
 id = "fracwell_maps"
 ministeps = 187
 reference = "its own conditions: uniform maps equal single values; equal pore volume, kh and fracture capacity give equal production; mirror image; direction of a rich streak"
-seconds = 5.97
+seconds = 5.78
 kind = "self"
 detail = "12-month oil: 7168 stb uniform; 7168 with half the net pay and doubled porosity, permeability and conductivity; 8709 with a rich streak at stage 1 (that stage 5361 against 3584); 2752 stb reading a generated geology"
 title = "Fractured well in rock that varies across the map: pore volume and kh decide, water is immobile, the model reads a geology grid"
@@ -5540,7 +5604,7 @@ status = "pass"
 id = "fracwell_parent_child"
 ministeps = 190
 reference = "its own conditions: no late start equals the plain run; a far-away child leaves the parent alone; a near child loses to depletion, more so the later it comes; the parent loses to the child"
-seconds = 27.17
+seconds = 26.45
 kind = "self"
 detail = "live oil, laterals 500 ft apart. A new well's first 12 months: 7482 stb alone; 6459 stb as a child 6 months after its parent; 5780 stb 24 months after. The parent's 36 months: 12518 stb alone, 11950 with a child from month 6. Lowest pressure in the rock at the end of the late-child run: 1501 psi"
 title = "Parent and child laterals: a later well drills into depleted rock, and takes from its parent"
@@ -5597,9 +5661,9 @@ status = "pass"
 id = "fracwell_fast_modes"
 ministeps = 149
 reference = "the standard mesh with default time steps on the same well (mesh and time-step sensitivity, not an outside check)"
-seconds = 35.26
+seconds = 33.68
 kind = "self"
-detail = "60 months: standard 32.0 s; fast 2.5 s (oil -0.9% at 12 months, -0.6% at 60); screening 0.7 s (oil -5.2%, -1.4%)"
+detail = "60 months: standard 30.7 s; fast 2.3 s (oil -0.9% at 12 months, -0.6% at 60); screening 0.6 s (oil -5.2%, -1.4%)"
 title = "Fast and screening run modes for batches of runs: what they cost in accuracy"
 cuts = 0
 
@@ -5649,7 +5713,7 @@ status = "pass"
 id = "fracwell_loss_staged"
 ministeps = 109
 reference = "the same stage in one unsplit run; a far-away stage alone"
-seconds = 4.75
+seconds = 4.53
 kind = "self"
 detail = "months 7 to 12 of the first stage: 976 stb in the split run, 976 unsplit, 1122 without conductivity loss"
 title = "Conductivity loss across a staged start: a far-away later stage must leave the first stage's run unchanged"
@@ -5681,7 +5745,7 @@ status = "pass"
 id = "welltest_buildup"
 ministeps = 276
 reference = "linear flow at a constant rate, and its superposition for the shut-in (closed form)"
-seconds = 4.36
+seconds = 3.73
 kind = "exact"
 detail = "19.5 stb/d for 30 days draws the well down 1490 psi (exact 1500); one day after shut-in it has recovered 256 psi (exact 259)"
 title = "Well test: steady flow then shut-in on fractures in linear flow; pressure rise and its log-log derivative"
@@ -5714,7 +5778,7 @@ detail = "month 6, one-day test: 128 stb/d at 500 psi, 53 at 1500, 0 at 3500. Th
 reference = "its own conditions: the curve falls with pressure; the point at the history pressure continues the history; the nodal point satisfies both curves; lift gas helps a loaded well"
 id = "nodal_inflow"
 title = "Nodal analysis: inflow curve from the reservoir model at a date, its meeting point with the tubing, and what lift gas adds"
-seconds = 8.95
+seconds = 8.92
 
     [[test.checks]]
     name = "falls_with_pressure"
@@ -5747,7 +5811,7 @@ status = "pass"
 id = "field_shared_rock"
 ministeps = 213
 reference = "the same two wells as separate reservoir models; mirror symmetry; direction of interference and of a late start; the facility limit"
-seconds = 16.04
+seconds = 15.51
 kind = "self"
 detail = "12-month oil under a 60 stb/d limit: 7416 stb as separate models, 7417 in one model 1,800 ft apart. No limit: 7467 stb far apart, 7042 at 500 ft. A second well from month 6 at 500 ft: its first six months give 2275 stb against 2642 for the first well's"
 title = "Two wells in the same rock on one facility: far apart they equal separate models, close together they interfere, and a later well starts in depleted rock"
@@ -5799,7 +5863,7 @@ status = "pass"
 id = "fracwell_vs_stage_sim"
 ministeps = 343
 reference = "stage-sim weak__sym on its 3x-refined mesh (same engine, independently built model)"
-seconds = 3.51
+seconds = 3.21
 kind = "cross"
 detail = "24-month recovery 0.3637% of oil in place, reference 0.3648%; half-length on mesh 278.9 ft"
 title = "Fractured well builder: finite fracture (279 ft half-length, 6.6 md-ft) against our research model"
@@ -5821,7 +5885,7 @@ status = "pass"
 id = "fracwell_blackoil_mesh"
 ministeps = 346
 reference = "the same model on the finer mesh preset"
-seconds = 10.13
+seconds = 9.43
 kind = "self"
 detail = "standard mesh, 24 months, three stages: 9883 stb oil, 31324 Mscf gas (coarse: 9881 stb, 30880 Mscf)"
 title = "Fractured well builder: coarse against standard mesh, live oil"
@@ -5845,7 +5909,7 @@ reference = "MRST solution shipped with the engine's tests"
 id = "cross_spe1_mrst"
 ministeps = 127
 title = "SPE1 against a second reference: MRST"
-seconds = 12.68
+seconds = 12.2
 cuts = 0
 
     [[test.checks]]
@@ -5876,7 +5940,7 @@ reference = "MRST solution shipped with the engine's tests"
 id = "cross_spe3_mrst"
 ministeps = 31
 title = "SPE3: gas condensate with oil vaporised in the gas, against MRST"
-seconds = 18.02
+seconds = 16.98
 cuts = 0
 
     [[test.checks]]
@@ -5901,7 +5965,7 @@ detail = "reservoir pressure fell to 1043 psia, below the lowest pressure of a f
 reference = "its own conditions: the note appears for SPE3, names the table's lowest pressure, and does not appear for SPE1"
 id = "fluid_table_warning"
 title = "A run that leaves the pressure range of its fluid tables is flagged (SPE3 is, SPE1 is not)"
-seconds = 2.03
+seconds = 1.6
 
     [[test.checks]]
     name = "flagged"
@@ -5925,7 +5989,7 @@ id = "cross_spe9"
 ministeps = 96
 notes = []
 reference = "OPM Flow results shipped with the benchmark"
-seconds = 8.7
+seconds = 7.93
 kind = "cross"
 title = "SPE9: black oil, 9,000 cells, 26 wells with control switching"
 cuts = 0
@@ -5957,7 +6021,7 @@ id = "cross_egg"
 ministeps = 175
 notes = []
 reference = "OPM Flow results shipped with the benchmark"
-seconds = 28.44
+seconds = 24.06
 kind = "cross"
 detail = "reference file has no pressure data; rates only"
 title = "Egg: two-phase water flood, corner-point grid with inactive cells, 12 wells"
@@ -5980,7 +6044,7 @@ id = "cross_compositional"
 ministeps = 503
 notes = []
 reference = "ECLIPSE 300 results shipped with the benchmark"
-seconds = 27.53
+seconds = 25.64
 kind = "cross"
 title = "Compositional: 3-component miscible gas displacement, equation of state"
 cuts = 0
@@ -6012,7 +6076,7 @@ id = "cross_polymer"
 ministeps = 237
 notes = ["Parser: RUNSPEC/PIMTDIMS - Unsupported keyword. It will be ignored.", "Parser: RUNSPEC/OPTIONS - Unsupported keyword. It will be ignored.", "Parser: GRID/MESSAGES - Unsupported keyword. It will be ignored."]
 reference = "OPM-tests reference results shipped with the benchmark"
-seconds = 27.7
+seconds = 26.29
 kind = "cross"
 title = "Polymer flood in black oil (mobility control, adsorption)"
 cuts = 4
